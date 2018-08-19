@@ -4,8 +4,11 @@ import numpy as np
 import math_physics as mphy
 import matplotlib.pyplot as plt
 from scipy.ndimage import median_filter
+from scipy.ndimage import gaussian_filter
+from scipy.interpolate import interp1d
 
-class NEISubDir:
+
+class NeiSubDir:
     def __init__(self,path,After=False,EdgeB=False):
         self.DarkBefore = path + r'/DarkBefore'
         self.FlatBefore = path + r'/FlatBefore'
@@ -32,66 +35,69 @@ class NEISubDir:
             else:
                 self.EdgeBAfter=path + r'/EdgeABefore'
 
-class NEIGetArrangement:
-    #import pandas as pd
-    def __init__(self, path):
-        filename = path+r'\arrangement.dat'
-        try:
-            data = pd.read_csv(filename,index_col=0,
-                           header=None, sep=r',\s+', engine='python').T
-            print('arrangement.dat successfully loaded')
-            # print(data.head())
-            for i in range(data.shape[1]):# remove the ' sign in some strings
-                data.iloc[0,i] = data.iloc[0,i].replace("'","")
 
-            k                = int(data.loc[1, 'k'])
-            l                = int(data.loc[1, 'l'])
-            h                = int(data.loc[1, 'h'])
-            energy_range_low = float(data.loc[1, 'energy_range_low'])
-            energy_range_high= float(data.loc[1, 'energy_range_high'])
+def nei_get_arrangement(setup_type, path):
+    class get_arrangement:
+        def __init__(self, path):
+            filename = path + r'\arrangement.dat'
+            try:
+                data = pd.read_csv(filename, index_col=0,
+                                   header=None, sep=r',\s+', engine='python').T
+                for i in range(data.shape[1]):  # remove the ' sign in some strings
+                    data.iloc[0, i] = data.iloc[0, i].replace("'", "")
 
-            self.diffaction_plane = data.loc[1, 'diffraction_plane']
-            self.type             = data.loc[1, 'type']
-            self.chi_degrees      = float(data.loc[1, 'chi_degrees'])
-            self.hkl              = [h,k,l]
-            self.energy           = float(data.loc[1, 'energy'])
-            self.energy_range     = [energy_range_low,energy_range_high]
-            self.dist_fd          = float(data.loc[1, 'dist_fd'])
-            self.detector         = self.detector(data)
-        except:
-            print('Error: Something is wrong when reading in the arrangement file')
+                k = int(data.loc[1, 'k'])
+                l = int(data.loc[1, 'l'])
+                h = int(data.loc[1, 'h'])
+                energy_range_low = float(data.loc[1, 'energy_range_low'])
+                energy_range_high = float(data.loc[1, 'energy_range_high'])
 
-    class detector:
-        def __init__(self,data):
-            self.type = data.loc[1, 'det_type']
-            self.pixel = float(data.loc[1, 'det_pixel'])
-            self.flip = float(data.loc[1, 'det_flip'])
-            self.phperapu = float(data.loc[1, 'det_phperapu'])
-            self.disp_x_demag = float(data.loc[1, 'det_disp_x_demag'])
-            self.pct_max = float(data.loc[1, 'det_pct_max'])
+                self.diffaction_plane = data.loc[1, 'diffraction_plane']
+                self.type = data.loc[1, 'type']
+                self.chi_degrees = float(data.loc[1, 'chi_degrees'])
+                self.hkl = [h, k, l]
+                self.energy = float(data.loc[1, 'energy'])
+                self.energy_range = [energy_range_low, energy_range_high]
+                self.dist_fd = float(data.loc[1, 'dist_fd'])
+                self.detector = self.detector(data)
+            except:
+                print('Error: Something is wrong when reading in the arrangement file')
 
-def nei_print_arrangement(arrangement):
+        class detector:
+            def __init__(self, data):
+                self.type = data.loc[1, 'det_type']
+                self.pixel = float(data.loc[1, 'det_pixel'])
+                self.flip = float(data.loc[1, 'det_flip'])
+                self.phperapu = float(data.loc[1, 'det_phperapu'])
+                self.disp_x_demag = float(data.loc[1, 'det_disp_x_demag'])
+                self.pct_max = float(data.loc[1, 'det_pct_max'])
+
+    arrangement = get_arrangement(path)
     arrangement_parameters = {'diffaction_plane': ' DIFFRACTION PLANE:',
                               'type': ' TYPE:',
                               'chi_degrees': ' ASYMETTRY ANGLE (CHI):',
-                              'hkl':' HKL:',
+                              'hkl': ' HKL:',
                               'energy': ' ENERGY (keV):',
                               'energy_range': ' ENERGY RANGE (keV):',
                               'dist_fd': ' DISTANCE FOCUS-DETECTOR (mm):',
                               'detector': '\n DETECTOR PARAMETERS:'}
-    detector_parameters    = {'type': ' DETECTOR TYPE:',
-                              'pixel': ' DETECTOR PIXEL (mm):',
-                              'flip': ' DETECTOR FLIP:',
-                              'disp_x_demag': ' DETECTOR DISPLAY X DEMAGNIFICATION:',
-                              'pct_max': ' DETECTOR PERCENT THRESHOLD:',
-                              'phperapu': ' phperapu'}
+    detector_parameters = {'type': ' DETECTOR TYPE:',
+                           'pixel': ' DETECTOR PIXEL (mm):',
+                           'flip': ' DETECTOR FLIP:',
+                           'disp_x_demag': ' DETECTOR DISPLAY X DEMAGNIFICATION:',
+                           'pct_max': ' DETECTOR PERCENT THRESHOLD:',
+                           'phperapu': ' phperapu'}
+
     for name, value in vars(arrangement).items():
-        if name == 'detector': # print detector information in a seperate section
+        if name == 'detector':  # print detector information in a seperate section
             print(arrangement_parameters[name])
             for name_2, value_2 in vars(arrangement.detector).items():
                 print(detector_parameters[name_2], value_2)
         else:
             print(arrangement_parameters[name], value)
+
+    return arrangement
+
 
 def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
                       rotate_90=False,twelve_bit=0):
@@ -109,82 +115,97 @@ def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
     average = image_array.mean(axis=0)
     return(average)
 
-class GetBeamFiles:
-    # return raw_images, only averaged, nothing else.
+def get_beam_files(path,Verbose=False,clip=False, flip=False):
+    '''
+    return raw_images, only averaged, nothing else.
+    :param path:
+    :param Verbose:
+    :param clip:
+    :param flip:
+    :return:
+    '''
 
-    def __init__(self,sub_dir,Verbose=False,clip=False,*,flip=False):
-        flat_path = sub_dir.FlatBefore
-        dark_path = sub_dir.DarkBefore
-        edge_path = sub_dir.EdgeABefore
+    sub_dir = NeiSubDir(path, After=False, EdgeB=False)
 
-        flat_files = file_search(flat_path,'*.tif')
-        dark_files = file_search(dark_path,'*.tif')
-        edge_files = file_search(edge_path,'*.tif')
+    flat_path = sub_dir.FlatBefore
+    dark_path = sub_dir.DarkBefore
+    edge_path = sub_dir.EdgeABefore
 
-        # read and average the raw data files - flats, darks, edges
-        # 2d numpy.array returned by read_average_tifs
-        flat = read_average_tifs(flat_files)
-        dark = read_average_tifs(dark_files)
-        edge = read_average_tifs(edge_files)
+    flat_files = file_search(flat_path,'*.tif')
+    dark_files = file_search(dark_path,'*.tif')
+    edge_files = file_search(edge_path,'*.tif')
 
-        image_size = flat.shape
-        n_horizontal = image_size[1] # Number of horizontal positions(pixels)
-        n_vertical   = image_size[0] # Number of energy points (the vertical direction on detector)
+    # read and average the raw data files - flats, darks, edges
+    # 2d numpy.array(image) is returned by read_average_tifs
+    flat = read_average_tifs(flat_files)
+    dark = read_average_tifs(dark_files)
+    edge = read_average_tifs(edge_files)
 
-        class OriginBeamFiles:
-            def __init__(self,flat,dark,edge,n_horizontal,n_vertical):
-                self.flat        = flat
-                self.dark        = dark
-                self.edge        = edge
-                self.n_horizontal= n_horizontal
-                self.n_vertical  = n_vertical
-        origin_beam_files = OriginBeamFiles(flat,dark,edge,n_horizontal,n_vertical)
+    image_size = flat.shape
+    n_horizontal = image_size[1] # Number of horizontal positions(pixels)
+    n_vertical   = image_size[0] # Number of energy points (the vertical direction on detector)
 
-        horizontal_low = 0; horizontal_high= n_horizontal  # Or n_horizontal-1?????
+    class OriginBeamFiles:
+        def __init__(self,flat,dark,edge,n_horizontal,n_vertical):
+            self.flat        = flat
+            self.dark        = dark
+            self.edge        = edge
+            self.n_horizontal= n_horizontal
+            self.n_vertical  = n_vertical
+    origin_beam_files = OriginBeamFiles(flat,dark,edge,n_horizontal,n_vertical)
 
-        if clip: # keyword clip is used only to trim off the left and right black area out of the beam,
-                 # This is usually not necessary, because the beam is supposed to fill the image all the
-                 # way horizontally.
-            t = flat-dark
-            t_smooth = median_filter(t,5) # median smooth
-            t_smooth = t_smooth/(t_smooth.max())
-            t_average= t_smooth.mean(axis=0) # each element is the average of the vertical direction
-            bright_ratio  = t_average/(t_average.max())
+    horizontal_low = 0; horizontal_high= n_horizontal  # Or n_horizontal-1?????
 
-            # find where(bright_deriv >= pct_max/100.0)
-            bright_deriv  = np.gradient(bright_ratio) # the derivative for every element.
-                                                      # Considering the brightness center in the beam,
-                                                      # it should be positive on one side, and negative
-                                                      # on the other side
-            fn = bright_deriv/bright_ratio
-            x = np.arange(0.0,float(n_horizontal))
-            # plt.ion()
-            if Verbose==True:
-                plt.plot(bright_ratio)
-                plt.plot(bright_deriv)
-                plt.plot(fn)
-                plt.legend(['Flat-Dark','Derivative(Flat-Dark)','Deriv/(Flat-Dark)'])
-                plt.title('Brightness along horizontal axis, and its derivative')
-                plt.show()
+    if clip: # keyword clip is used only to trim off the left and right black area out of the beam,
+             # This is usually not necessary, because the beam is supposed to fill the image all the
+             # way horizontally.
+        t = flat-dark
+        t_smooth = median_filter(t,5) # median smooth
+        t_smooth = t_smooth/(t_smooth.max())
+        t_average= t_smooth.mean(axis=0) # each element is the average of the vertical direction
+        bright_ratio  = t_average/(t_average.max())
+        # find where(bright_deriv >= pct_max/100.0)
+        bright_deriv  = np.gradient(bright_ratio) # the derivative for every element.
+                                                  # Considering the brightness center in the beam,
+                                                  # it should be positive on one side, and negative
+                                                  # on the other side
+        fn = bright_deriv/bright_ratio
+        x = np.arange(0.0,float(n_horizontal))
+        # plt.ion()
+        if Verbose==True:
+            plt.plot(bright_ratio)
+            plt.plot(bright_deriv)
+            plt.plot(fn)
+            plt.legend(['Flat-Dark','Derivative(Flat-Dark)','Deriv/(Flat-Dark)'])
+            plt.title('Brightness along horizontal axis, and its derivative')
+            plt.show()
 
-            idx_left = (fn>0); idx_right = (fn<0)
-            fwhm_left,left_low,left_high = mphy.fwhm(x[idx_left],fn[idx_left],Verbose=Verbose)
-            fwhm_right,right_low,right_high=mphy.fwhm(x[idx_right],-fn[idx_right],Verbose=Verbose)
-            horizontal_low=left_high
-            horizontal_high=right_low
-            flat = flat[:,horizontal_low:horizontal_high]
-            dark = dark[:,horizontal_low:horizontal_high]
-            edge = edge[:,horizontal_low:horizontal_high]
-            n_horizontal = flat.shape[1]
+        idx_left = (fn>0); idx_right = (fn<0)
+        fwhm_left,left_low,left_high = mphy.fwhm(x[idx_left],fn[idx_left],Verbose=Verbose)
+        fwhm_right,right_low,right_high=mphy.fwhm(x[idx_right],-fn[idx_right],Verbose=Verbose)
+        horizontal_low=left_high
+        horizontal_high=right_low
+        flat = flat[:,horizontal_low:horizontal_high]
+        dark = dark[:,horizontal_low:horizontal_high]
+        edge = edge[:,horizontal_low:horizontal_high]
 
-        self.flat = flat
-        self.dark = dark
-        self.edge = edge
-        self.n_horizontal = n_horizontal
-        self.n_vertical   = n_vertical
-        self.horizontal_low = horizontal_low
-        self.horizontal_high=horizontal_high
-        self.origin_beam_files= origin_beam_files
+    class BeamFiles:
+        def __init__(self,flat,dark,edge,horizontal_low,
+                     horizontal_high,origin_beam_files):
+            self.flat = flat
+            self.dark = dark
+            self.edge = edge
+            self.horizontal_low = horizontal_low
+            self.horizontal_high=horizontal_high
+            self.origin_beam_files= origin_beam_files
+    return BeamFiles(flat,dark,edge,horizontal_low,horizontal_high,origin_beam_files)
+
+
+def get_tomo_files(path, Verbose=False, After=False, EdgeB=False):
+    sub_dir = NeiSubDir(path, After=After, EdgeB=EdgeB)
+    tomo_files = file_search(sub_dir.Tomo, '*tif')
+    return (tomo_files)
+
 
 def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     # flat_dark: flat-dark, 2D array
@@ -224,8 +245,6 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
         bot_positions.append(y_bot)
         peak_positions.append(y_peak)
 
-    # top_positions = median_filter(top_positions,5)
-    # bot_positions = median_filter(bot_positions,5)
     peak_positions= median_filter(peak_positions,5)
     peak_positions= np.rint(np.array(peak_positions)).astype(int)
     top_positions = (peak_positions+half_width).astype(int)
@@ -273,6 +292,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
         plt.show()
 
     return s
+
     ########### poly degress study ####################################
     # peak_poly_coef = np.polyfit(np.arange(nx), peak_positions,deg=4)
     # p = np.poly1d(peak_poly_coef)
@@ -314,30 +334,86 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     #     plt.show()
     #################################################################
 
-def nei_determine_murhos(materials, exy, gaussian_energy_width,use_sm_data=False,
-                         use_measured_standard=False):
+
+def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interpol_kind='linear',
+                         use_sm_data=False, use_measured_standard=False):
     '''
+    For every compound, every horizontal position, get the murho value for that
+    compound at every energy point (y position on the detector)
     ; mats structure
     ; tags:
-    ; names - what you call each material, i.e. 'selenite'
-    ; types - how we find the mu/rhos
-    ;       - IDL   : get it from IDL
+    ; names - what you call each material, i.e. 'K2SeO4'
+    ; datasource - how we find the mu/rhos
+    ;       - system   : get it from calculation
     ;       - FILE : get it from a file
-    ; i.e. mats = { names:names, types:types }
+            - standard: get murho from experiment standard. Stardard data are collected with
+                        current experiment setting, and standard selenium compound solution ,etc.
+    ; i.e. mats = { names:names, datasource:datasource }
     ; where: names = ['Water', 'Bone', 'Selenite', 'U'   ]
-    ;        types = [  'IDL',  'IDL',     'FILE', 'IDL' ]
-    :param materials:
+    ;        types = [  'system',  'system',     'FILE', 'system' ]
+    :param material_datasource:
     :param exy:
     :param gaussian_energy_width:
+    :param interpol_kind: default value is 'linear'
     :param use_sm_data:
     :param use_measured_standard:
     :return:
     '''
-    n_energies = exy.shape[0]
-    emin = exy.min()
-    emax = exy.max()
-    e_range=emax-emin
-    e_range=np.linspace(emin-2*(e_range),emin+2*(e_range),5*n_energies)
+    nx = exy.shape[1]
+    ny = exy.shape[0]  # number of energies
+    emin = np.median(exy, axis=1).min()
+    emax = np.median(exy, axis=1).max()
+    e_range = emax - emin
+    energies = np.linspace(emin - 2 * (e_range), emax + 2 * (e_range), 5 * ny)
+
+    murhos = {}
+    for name, datasource in material_datasource.items():
+        print('(nei_determine_murhos) Geting murho data for ' + name)
+        if datasource.lower() == 'file':
+            # get murho from saved file
+            mu_rho = mphy.murho_selenium_compounds(name, energies)
+        elif datasource.lower() == 'system':
+            # get murho by calculating it for every element
+            mu_rho = mphy.murho(name, energies)
+        elif datasource.lower() == 'standard':
+            # get murho from experiment standard. Stardard data are collected with current experiment setting,
+            # and standard selenium compound solution ,etc.
+            pass
+        else:
+            raise Exception('Material murho data source code is invalid.\n '
+                            'Please choose from ["SYSTEM", "FILE", "STANDARD"],\n'
+                            'and redefine the "source" variable\n')
+        murhos[name] = mu_rho
+
+    ####################  Blur the edge if needed  ##################
+    if gaussian_energy_width != 0:
+        energies_stepsize = energies[1] - energies[0]
+        width = gaussian_energy_width / energies_stepsize
+        ###### auto gaussian blur
+        for name, value in murhos.items():
+            # truncate 3.0 means 3 sigma will be the width used for gaussian filter
+            murhos[name] = gaussian_filter(value, sigma=width, mode='nearest', truncate=3.0)
+    #     ###### manual gaussian blur
+    #     width_int = round(width)
+    #     sigma_3X = 3*width_int
+    #     sigma_3X = max(sigma_3X,5)
+    #     region_3sigma = np.linspace(-sigma_3X,sigma_3X,int(2*sigma_3X)+1)
+    #     gauss_filter = np.exp((-region_3sigma**2)/(2*width**2))
+    #     total_gf = gauss_filter.sum()
+    #     murho1 = murhos.copy()
+    #     for name,value in murho1.items():
+    #         murho1[name] = np.convolve(value,gauss_filter,'same')/total_gf
+
+    ############## Use interpol to get the murho value at every energy point in exy for every element  ####
+    murhos_all = {}
+    for name in murhos.keys():  # literate over every compound, save each 2d array in dictionary
+        interpol = interp1d(energies, murhos[name], kind=interpol_kind)  # Get the interpol object for this compound
+        murhos_exy = np.empty((ny, nx)) # to save the murhos for one compound
+        for x in range(nx):
+            murhos_exy[:, x] = interpol(exy[:, x])  # do the interpol prediction
+        murhos_all[name] = murhos_exy  # save to dict
+
+    return murhos_all
 
 
 

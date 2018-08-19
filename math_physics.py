@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import re
+from scipy.interpolate import interp1d
 
 
 class Constants:
@@ -277,7 +278,8 @@ def element_info(element_name,no_whine=False):
 
 def read_absorber(element_name,Verbose=False):
     element_name = element_name.upper()
-    print('(read_absorber) Looking for "'+element_name+'" in absorber.dat')
+    if Verbose:
+        print('(read_absorber) Looking for "'+element_name+'" in absorber.dat')
     # open 'absorber.dat' file, get to the interested element by regex,
     # get the ek, eta, ef..
     with open(r'C:\Users\qcyus\Dropbox (X-ray Imaging Group)'
@@ -510,12 +512,69 @@ def murho(name,energies,Verbose=False):
     return(mu_total)
 
 
-# def murho_selenium_compounds(name, energies):
-#     '''
-#
-#     :param name:
-#     :param energies:
-#     :return:
-#     '''
-#     path =
-#     return()
+def murho_selenium_compounds(name, energies, interpol_kind='linear'):
+    '''
+    read in xas data for selenium compounds, generate murho values from the values in files,
+    interpol to make value for interested energies
+    :param name:
+    :param energies:
+    :param interpol_kind:
+    :return:
+    '''
+    from scipy.interpolate import interp1d
+    path = r'C:\Users\qcyus\Dropbox (X-ray Imaging Group)\IDL procedures\Spectra Selenium compounds'
+    name = name.upper()
+    if name == 'SE-METH':
+        file = path + r'\semet-solid.CRS'
+        estop = -1
+        estart = -1
+    elif name == 'K2SEO3':
+        file = path + r'\seo3-ph7.CRS'
+        estop = -1
+        estart = -1
+    elif name == 'K2SEO4':
+        file = path + r'\seo4-ph7-1.CRS'
+        estop = -1
+        estart = -1
+    else:
+        raise Exception("(murho_selenium_compounds) Selenium compound '" + name +
+                        r"' is not found in 'Spectra Selenium compounds'.")
+    data = pd.read_csv(file, delimiter=r"\s+", skiprows=1,
+                       names=['energies', 'cross_over', 'normalized'])
+    e1 = energies
+    e2 = data.energies / 1000
+    a = data.cross_over / e2  # absorbance? absorption? attenuation?
+    normalized_atten = data.normalized
+    n_energies = len(e2)
+
+    murho_e2 = murho(name, e2)
+    # line up the first and last value of murho and a, then we use the a values to fake the murho values
+    a = murho_e2[0] + (murho_e2[-1] - murho_e2[0]) * (a - a[0]) / (a.iloc[-1] - a[0])  # type(a): pandas...series
+    a = a - 0.5 * (e2 - e2.min())  # what is this used for???
+    dataframe_a = pd.DataFrame.from_dict({'energy': e2, 'murho': a}, )
+
+    murho_e1 = murho(name, e1)
+    try:
+        dataframe_murho_e1 = pd.DataFrame.from_dict({'energy': e1, 'murho': murho_e1})
+    except:
+        dataframe_murho_e1 = pd.DataFrame.from_dict({'energy': [e1], 'murho': [murho_e1]})
+
+    df1 = dataframe_murho_e1[dataframe_murho_e1.energy < e2[0]]  # where energy < e2[first]
+    df3 = dataframe_murho_e1[dataframe_murho_e1.energy > e2.iloc[-1]]  # where energy > e2[last]
+    df2 = dataframe_a
+    murho_all = pd.concat([df1, df2, df3], ignore_index=True)
+    # in IDL, an interpol(mall,eall,es) was used. 'LSQUADRATIC or QUADRATIC or SPLINE is not set,
+    # the default is to use linear interpolation'
+    # In python, 2 options here.
+    ## numpy.interp(x, xp, fp, left=None, right=None, period=None): only do linear interpolation
+    ## scipy.interpolate.interp1d(x, y, kind='linear', axis=-1, copy=True, bounds_error=None, fill_value=nan, assume_sorted=False)
+    #### this one we can choose to use 'linear' or 'spline' or 'cubic' or something else.
+    interpol = interp1d(murho_all.energy.values, murho_all.murho.values, kind=interpol_kind)
+    murho_interpol = interpol(e1)
+
+    if type(e1) is int or type(e1) is float:
+        murho_interpol = murho_interpol.item()
+    return murho_interpol
+
+
+
