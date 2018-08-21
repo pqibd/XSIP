@@ -1,39 +1,59 @@
 import pandas as pd
-from toolkit import *
 import numpy as np
-import math_physics as mphy
 import matplotlib.pyplot as plt
 from scipy.ndimage import median_filter
 from scipy.ndimage import gaussian_filter
 from scipy.interpolate import interp1d
+import math_physics as mphy
 
+# __all__ = ['NeiSubDir','file_search',
+#            'nei_get_arrangement','read_average_tifs','get_tomo_files','nei_determine_murhos',
+#            'get_beam_files','nei','beam_near_edge_imaging', 'nei_beam_parameters',]
 
 class NeiSubDir:
-    def __init__(self,path,After=False,EdgeB=False):
+    def __init__(self, path, After=False, EdgeB=False):
         self.DarkBefore = path + r'/DarkBefore'
         self.FlatBefore = path + r'/FlatBefore'
-        self.EdgeABefore= path + r'/EdgeABefore'
-        self.Tomo       = path + r'/Tomo'
+        self.EdgeABefore = path + r'/EdgeABefore'
+        self.Tomo = path + r'/Tomo'
         if After == True:
-            self.DarkAfter=path+ r'/DarkAfter'
-            self.FlatAfter=path+ r'/FlatAfter'
-            self.EdgeAAfter=path+r'/EdgeAAfter'
-        else: # use 'Before' for all 'After'
+            self.DarkAfter = path + r'/DarkAfter'
+            self.FlatAfter = path + r'/FlatAfter'
+            self.EdgeAAfter = path + r'/EdgeAAfter'
+        else:  # use 'Before' for all 'After'
             self.DarkAfter = path + r'/DarkBefore'
             self.FlatAfter = path + r'/FlatBefore'
             self.EdgeAAfter = path + r'/EdgeABefore'
         if EdgeB == True:
-            self.EdgeBBefore=path + r'/EdgeBBefore'
-            if After ==True:
-                self.EdgeBAfter=path + r'/EdgeBAfter'
+            self.EdgeBBefore = path + r'/EdgeBBefore'
+            if After == True:
+                self.EdgeBAfter = path + r'/EdgeBAfter'
             else:
-                self.EdgeBAfter=path + r'/EdgeBBefore'
-        else: # use EdgeA for all EdgeB
+                self.EdgeBAfter = path + r'/EdgeBBefore'
+        else:  # use EdgeA for all EdgeB
             self.EdgeBBefore = path + r'/EdgeABefore'
-            if After ==True:
-                self.EdgeBAfter=path + r'/EdgeAAfter'
+            if After == True:
+                self.EdgeBAfter = path + r'/EdgeAAfter'
             else:
-                self.EdgeBAfter=path + r'/EdgeABefore'
+                self.EdgeBAfter = path + r'/EdgeABefore'
+
+
+def file_search(path, file_filter='*'):
+    """
+    :param path: search files in this path
+    :param file_filter: change the pattern of filter to match the wanted files
+    :return:
+    """
+    import os
+    import fnmatch
+    files = fnmatch.filter(os.listdir(path), file_filter)
+    if len(files) == 0:
+        print('------------------------'
+              '\nWarning: No files found\n'
+              '------------------------')
+        return files
+    files = [path + r'/' + file for file in files]
+    return files
 
 
 def nei_get_arrangement(setup_type, path):
@@ -207,9 +227,102 @@ def get_tomo_files(path, Verbose=False, After=False, EdgeB=False):
     return (tomo_files)
 
 
+def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interpol_kind='linear',
+                         use_sm_data=False, use_measured_standard=False):
+    '''
+    For every compound, every horizontal position, get the murho value for that
+    compound at every energy point (y position on the detector)
+    ; mats structure
+    ; tags:
+    ; names - what you call each material, i.e. 'K2SeO4'
+    ; datasource - how we find the mu/rhos
+    ;       - system   : get it from calculation
+    ;       - FILE : get it from a file
+            - standard: get murho from experiment standard. Stardard data are collected with
+                        current experiment setting, and standard selenium compound solution ,etc.
+    ; i.e. mats = { names:names, datasource:datasource }
+    ; where: names = ['Water', 'Bone', 'Selenite', 'U'   ]
+    ;        types = [  'system',  'system',     'FILE', 'system' ]
+    :param material_datasource:
+    :param exy:
+    :param gaussian_energy_width:
+    :param interpol_kind: default value is 'linear'
+    :param use_sm_data:
+    :param use_measured_standard:
+    :return:
+    '''
+    nx = exy.shape[1]
+    ny = exy.shape[0]  # number of energies
+    emin = np.median(exy, axis=1).min()
+    emax = np.median(exy, axis=1).max()
+    e_range = emax - emin
+    energies = np.linspace(emin - 2 * (e_range), emax + 2 * (e_range), 5 * ny)
+
+    murhos = {}
+    for name, datasource in material_datasource.items():
+        print('(nei_determine_murhos) Geting murho data for ' + name)
+        if datasource.lower() == 'file':
+            # get murho from saved file
+            mu_rho = mphy.murho_selenium_compounds(name, energies)
+        elif datasource.lower() == 'system':
+            # get murho by calculating it for every element
+            mu_rho = mphy.murho(name, energies)
+        elif datasource.lower() == 'standard':
+            # get murho from experiment standard. Stardard data are collected with current experiment setting,
+            # and standard selenium compound solution ,etc.
+            pass
+        else:
+            raise Exception('Material murho data source code is invalid.\n '
+                            'Please choose from ["SYSTEM", "FILE", "STANDARD"],\n'
+                            'and redefine the "source" variable\n')
+        murhos[name] = mu_rho
+
+    ####################  Blur the edge if needed  ##################
+    if gaussian_energy_width != 0:
+        energies_stepsize = energies[1] - energies[0]
+        width = gaussian_energy_width / energies_stepsize
+        ###### auto gaussian blur
+        for name, value in murhos.items():
+            # truncate 3.0 means 3 sigma will be the width used for gaussian filter
+            murhos[name] = gaussian_filter(value, sigma=width, mode='nearest', truncate=3.0)
+    #     ###### manual gaussian blur
+    #     width_int = round(width)
+    #     sigma_3X = 3*width_int
+    #     sigma_3X = max(sigma_3X,5)
+    #     region_3sigma = np.linspace(-sigma_3X,sigma_3X,int(2*sigma_3X)+1)
+    #     gauss_filter = np.exp((-region_3sigma**2)/(2*width**2))
+    #     total_gf = gauss_filter.sum()
+    #     murho1 = murhos.copy()
+    #     for name,value in murho1.items():
+    #         murho1[name] = np.convolve(value,gauss_filter,'same')/total_gf
+
+    ############## Use interpol to get the murho value at every energy point in exy for every element  ####
+    murhos_all = {}
+    print('(nei_determine_murhos) Started doing interpolation to bundle MU_RHOS and EXY')
+    for name in murhos.keys():  # literate over every compound, save each 2d array in dictionary
+        # print('                       Started interpolation for ' + name)
+        # print('                       ',end='')
+        interpol = interp1d(energies, murhos[name], kind=interpol_kind)  # Get the interpol object for this compound
+        murhos_exy = np.empty((ny, nx)) # to save the murhos for one compound
+        for x in range(nx):
+            murhos_exy[:, x] = interpol(exy[:, x])  # do the interpol prediction
+            # print('#'*(x%int(nx/50)==0),end='')
+            # if x==nx-1: print()
+        murhos_all[name] = murhos_exy  # save to dict
+        print('                       Finished interpolation for ' + name)
+    print('(nei_determine_murhos) Finished "nei_determine_murhos"\n')
+
+    return murhos_all
+
 def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
-    # flat_dark: flat-dark, 2D array
-    # threshold: determines where we cut the beam on the energy axis
+    '''
+    :param flat_dark: flat-dark, 2D array
+    :param threshold: determines where we cut the beam on the energy axis
+    :param no_fit:
+    :param Verbose:
+    :param poly_deg:
+    :return:
+    '''
     shape = flat_dark.shape
     nx = shape[1]; ny = shape[0]
     top_positions=[]; bot_positions=[];peak_positions=[]
@@ -291,8 +404,6 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
         plt.title('Selected Beam Area')
         plt.show()
 
-    return s
-
     ########### poly degress study ####################################
     # peak_poly_coef = np.polyfit(np.arange(nx), peak_positions,deg=4)
     # p = np.poly1d(peak_poly_coef)
@@ -334,86 +445,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     #     plt.show()
     #################################################################
 
-
-def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interpol_kind='linear',
-                         use_sm_data=False, use_measured_standard=False):
-    '''
-    For every compound, every horizontal position, get the murho value for that
-    compound at every energy point (y position on the detector)
-    ; mats structure
-    ; tags:
-    ; names - what you call each material, i.e. 'K2SeO4'
-    ; datasource - how we find the mu/rhos
-    ;       - system   : get it from calculation
-    ;       - FILE : get it from a file
-            - standard: get murho from experiment standard. Stardard data are collected with
-                        current experiment setting, and standard selenium compound solution ,etc.
-    ; i.e. mats = { names:names, datasource:datasource }
-    ; where: names = ['Water', 'Bone', 'Selenite', 'U'   ]
-    ;        types = [  'system',  'system',     'FILE', 'system' ]
-    :param material_datasource:
-    :param exy:
-    :param gaussian_energy_width:
-    :param interpol_kind: default value is 'linear'
-    :param use_sm_data:
-    :param use_measured_standard:
-    :return:
-    '''
-    nx = exy.shape[1]
-    ny = exy.shape[0]  # number of energies
-    emin = np.median(exy, axis=1).min()
-    emax = np.median(exy, axis=1).max()
-    e_range = emax - emin
-    energies = np.linspace(emin - 2 * (e_range), emax + 2 * (e_range), 5 * ny)
-
-    murhos = {}
-    for name, datasource in material_datasource.items():
-        print('(nei_determine_murhos) Geting murho data for ' + name)
-        if datasource.lower() == 'file':
-            # get murho from saved file
-            mu_rho = mphy.murho_selenium_compounds(name, energies)
-        elif datasource.lower() == 'system':
-            # get murho by calculating it for every element
-            mu_rho = mphy.murho(name, energies)
-        elif datasource.lower() == 'standard':
-            # get murho from experiment standard. Stardard data are collected with current experiment setting,
-            # and standard selenium compound solution ,etc.
-            pass
-        else:
-            raise Exception('Material murho data source code is invalid.\n '
-                            'Please choose from ["SYSTEM", "FILE", "STANDARD"],\n'
-                            'and redefine the "source" variable\n')
-        murhos[name] = mu_rho
-
-    ####################  Blur the edge if needed  ##################
-    if gaussian_energy_width != 0:
-        energies_stepsize = energies[1] - energies[0]
-        width = gaussian_energy_width / energies_stepsize
-        ###### auto gaussian blur
-        for name, value in murhos.items():
-            # truncate 3.0 means 3 sigma will be the width used for gaussian filter
-            murhos[name] = gaussian_filter(value, sigma=width, mode='nearest', truncate=3.0)
-    #     ###### manual gaussian blur
-    #     width_int = round(width)
-    #     sigma_3X = 3*width_int
-    #     sigma_3X = max(sigma_3X,5)
-    #     region_3sigma = np.linspace(-sigma_3X,sigma_3X,int(2*sigma_3X)+1)
-    #     gauss_filter = np.exp((-region_3sigma**2)/(2*width**2))
-    #     total_gf = gauss_filter.sum()
-    #     murho1 = murhos.copy()
-    #     for name,value in murho1.items():
-    #         murho1[name] = np.convolve(value,gauss_filter,'same')/total_gf
-
-    ############## Use interpol to get the murho value at every energy point in exy for every element  ####
-    murhos_all = {}
-    for name in murhos.keys():  # literate over every compound, save each 2d array in dictionary
-        interpol = interp1d(energies, murhos[name], kind=interpol_kind)  # Get the interpol object for this compound
-        murhos_exy = np.empty((ny, nx)) # to save the murhos for one compound
-        for x in range(nx):
-            murhos_exy[:, x] = interpol(exy[:, x])  # do the interpol prediction
-        murhos_all[name] = murhos_exy  # save to dict
-
-    return murhos_all
+    return s
 
 
 
