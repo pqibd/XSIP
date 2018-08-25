@@ -1,10 +1,13 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 from scipy.ndimage import median_filter
 from scipy.ndimage import gaussian_filter
 from scipy.interpolate import interp1d
 import math_physics as mphy
+from toolkit import *
+
 
 # __all__ = ['NeiSubDir','file_search',
 #            'nei_get_arrangement','read_average_tifs','get_tomo_files','nei_determine_murhos',
@@ -221,10 +224,33 @@ def get_beam_files(path,Verbose=False,clip=False, flip=False):
     return BeamFiles(flat,dark,edge,horizontal_low,horizontal_high,origin_beam_files)
 
 
-def get_tomo_files(path, Verbose=False, After=False, EdgeB=False):
+def get_tomo_files(path, multislice=False, slice=1, n_proj=0, Verbose=False, After=False, EdgeB=False):
+
     sub_dir = NeiSubDir(path, After=After, EdgeB=EdgeB)
     tomo_files = file_search(sub_dir.Tomo, '*tif')
-    return (tomo_files)
+
+    # get the tomo for ONE slice if multi slices exist.
+    if multislice == True:
+        print('-----------------------------------------------------'
+              '\nReminder: "Slice" starts from 1. There is NO 0th slice'
+              '-----------------------------------------------------')
+        if slice < 1:
+            print('-----------------------------------------------------'
+                  '\nWarning: "Slice" starts from 1. "slice=' + str(slice) + ' is entered\n'
+                  '-----------------------------------------------------')
+        i_begin = n_proj * (slice - 1)
+        i_end = i_begin + n_proj
+        tomo_files = tomo_files[i_begin:i_end]
+        print('(get_tomo_files) Tomo files in 1 slice loaded')
+    n_tomo = len(tomo_files)
+    print('(get_tomo_files) Number of Tomo files: ', n_tomo)  # equal to n_projections
+    # tomo files to data array
+    from PIL import Image
+    tomo_data = []
+    for i in range(n_tomo):
+        tomo_data.append(np.array(Image.open(tomo_files[i])))
+    tomo_data = np.array(tomo_data)
+    return (tomo_data)
 
 
 def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interpol_kind='linear',
@@ -310,7 +336,7 @@ def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interp
             # if x==nx-1: print()
         murhos_all[name] = murhos_exy  # save to dict
         print('                       Finished interpolation for ' + name)
-    print('(nei_determine_murhos) Finished "nei_determine_murhos"\n')
+    print('(nei_determine_murhos) Finished "nei_determine_murhos"')
 
     return murhos_all
 
@@ -346,7 +372,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
         gauss_sigma  = gauss_popt[2]
         y_peak = int(round(gauss_center))
         if y_peak not in y_index:
-            raise ValueError('The peak index is not in the reasonable range')
+            raise ValueError('The peak index is not in reasonable range')
         half_width = int(np.rint(gauss_sigma*np.sqrt(-2*np.log(threshold))))
         y_top = round(y_peak+half_width)
         if y_top>y_index.max():
@@ -381,6 +407,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     ###############  Doing polynomial fit   ##############################
     #Approach 1 : polynomial fit
     # Only for the peak
+    print('(beam_edges) Doing polynomial fit for beam peak positions')
     peak_poly_coef = np.polyfit(np.arange(nx), peak_positions,deg=poly_deg)
     p = np.poly1d(peak_poly_coef)
     peak_positions_poly = p(np.arange(nx))
@@ -448,7 +475,102 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     return s
 
 
+def idl_ct(sinogram,pixel,center_drift=0):
+    """
+
+    :param sinogram:
+    :param pixel: pixel size in centimeter
+    :param center_drift:
+    :return:
+    """
+    from idlpy import IDL
+    recon = IDL.normalized_fbp(sinogram,dx=center_drift,pixel=pixel)
+
+    return recon
 
 
+def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0):
+    """
+
+    :param tomo_data:
+    :param beam_parameters:
+    :param lowpass: Use gaussian filter to smooth the mu_t spectrum
+    :param ct: If ct, use the left and right of projection to remove air absorption
+    :param side_width: the width used for the above parameter
+    :return: mu_t: 3 dimension array [n_tomo, ny, nx]
+    """
+    ####################  calculate -ln(r)=  mu/rho * rho * t   #################
+    # tomo_data.shape is [n_tomo,ny,nx]
+    flat = beam_parameters.beam_files.flat
+    dark = beam_parameters.beam_files.dark
+    flat_dark = flat-dark
+    beam = beam_parameters.beam
+    nx = beam.shape[1]; ny = beam.shape[0]
+    n_tomo = tomo_data.shape[0]
+
+    mu_t = tomo_data*0.0 # make a 3_d array with the same shape of tomo_data
+    for i in range(n_tomo):
+        mu_t[i]= -np.log((tomo_data[i]-dark)/flat_dark)
+        mu_t[i]= np.nan_to_num(mu_t[i])  #replace nan values with 0.
+
+        if ct: # remove air absorption. Calculated from the left and right of the projection image,
+               # where there should be only air, no sample.
+            if side_width==0: # making sure side_width is valid.
+                raise Exception('When "CT" is True, "side_width" is used to remove air absorption, and '
+                                '"side_width" has to be an integer >0')
+            mut_left_total = (mu_t[i]*beam)[:,0:side_width].sum()
+            mut_right_total= (mu_t[i]*beam)[:,-side_width:].sum()
+            mut_left_count = beam[:,0:side_width].sum()
+            mut_right_count= beam[:,-side_width:].sum()
+            mut_left_avg   = mut_left_total/mut_left_count
+            mut_right_avg  = mut_right_total/mut_right_count
+            xp = np.arange(nx)
+            filter_1d = mut_left_avg+(mut_right_avg-mut_left_avg)*((xp-side_width/2)/(len(xp)-side_width))
+            filter_2d = filter_1d*(beam*0.0+1)
+            # remove air from total mu_t
+            mu_t[i] = mu_t[i]-filter_2d
+
+    # use a lowpass filter (gaussian filter) to remove some high frequency noise
+    # Todo: decide the default value for "lowpass"
+    pixel_gaussian_width = beam_parameters.pixel_edge_width
+    if lowpass:
+        mu_t = gaussian_filter(mu_t,[0,pixel_gaussian_width,0],truncate=3.0,mode='nearest')
+
+    return mu_t
 
 
+def calculate_rhot(mu_rhos,mu_t,beam):
+
+    import scipy.optimize.nnls as nnls
+    # turn dictionary into array
+    names = list(mu_rhos.keys())
+    murhos_array = np.array(list(mu_rhos.values()))
+
+    n_tomo = mu_t.shape[0]
+    nx = mu_t.shape[2]
+    rho_t = np.zeros(shape=(n_tomo, nx, len(names)))
+    counter = 0
+    start_time = time.clock()
+    print('(calculate_rhot) Started calculating RHO_T with linear regression')
+    print('                 ', end='')
+    for t in range(n_tomo):
+        for x in range(nx):
+            df = pd.DataFrame(murhos_array[:, :, x]).T
+            df.columns = names
+            df['Mu_t'] = mu_t[t, :, x]  # mu_t [n_tomo,ny,nx]
+            # Only use the part in the 'beam' range
+            beam_range = beam[:, x] > 0
+            # do linear regression. Todo: Find the best method to do non-negative linear regression
+            coef = nnls(df[beam_range][names], df[beam_range]['Mu_t'])[0]
+            rho_t[t, x] = coef
+            # print progress
+            print('>' * (counter % int(n_tomo * nx / 48) == 0), end='')
+            counter += 1
+    print('\n                 Finished calculation for'
+          '\n                 ', n_tomo, ' tomo files in',
+          round(time.clock() - start_time, 2), 'seconds')
+    rts = {}
+    for i in range(len(names)):
+        rts[names[i]] = rho_t[:, :, i]
+
+    return rts

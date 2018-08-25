@@ -2,8 +2,9 @@ from near_edge_imaging import *
 import math
 import scipy.constants as C
 
-def nei_beam_parameters(display,beam_files,setup, detector, fix_vertical_motion,
-                        clip,no_fit=False,Verbose=False,poly_degree=5):
+
+def nei_beam_parameters(display, beam_files, setup, detector, fix_vertical_motion,
+                        clip, no_fit=False, Verbose=False, poly_degree=5):
     '''
     Unit of exy in the returned parameters: keV
     :param display:
@@ -38,10 +39,10 @@ def nei_beam_parameters(display,beam_files,setup, detector, fix_vertical_motion,
     e_edge = energy
     d_hkl = a0 / math.sqrt((np.array(hkl) ** 2).sum())
     # C.c: speed of light, C.h: planck constant, C.eV: eV to Joer
-    lamb = (C.c * C.h / C.eV) / (e_edge * 1000) * (10**10)  # WaveLength, Unit: Angstroms
+    lamb = (C.c * C.h / C.eV) / (e_edge * 1000) * (10 ** 10)  # WaveLength, Unit: Angstroms
     theta_b = math.asin(lamb / (2 * d_hkl))  # lambda = 2dsin(theta)
     print('(nei_beam_parameters) Bragg angle in degree:\n'
-          '                     ',theta_b*180/math.pi)
+          '                     ', theta_b * 180 / math.pi)
 
     # What is this?
     bfact = math.cos(theta_b + chi) / math.cos(theta_b - chi)
@@ -63,7 +64,7 @@ def nei_beam_parameters(display,beam_files,setup, detector, fix_vertical_motion,
 
     ##########   Determine the beam size we want to keep  ################################
     thresh = pct_max / 100.0
-    print('(nei_beam_parameters) Calling "beam_edges"')
+    print('(nei_beam_parameters) Running "beam_edges"')
     beam_position = beam_edges(flat_dark, thresh, no_fit=no_fit, poly_deg=poly_degree)
     beam = beam_position.beam  # 2D array (image), trimmed top and bottom to remove the darker part vertically
     beam_top = beam_position.top
@@ -150,8 +151,8 @@ def nei_beam_parameters(display,beam_files,setup, detector, fix_vertical_motion,
     peak_slope = mphy.polyfit(x_range, beam_peak, degree=1)  # Peak of beam y values
 
     # get mean values for edge and peak
-    edge_mean  = edge_positions.mean()
-    peak_mean  = beam_peak.mean()
+    edge_mean = edge_positions.mean()
+    peak_mean = beam_peak.mean()
 
     #########   align pixel with energy values      ####################
     '''
@@ -159,27 +160,27 @@ def nei_beam_parameters(display,beam_files,setup, detector, fix_vertical_motion,
         exy is the energy(eV) at every [y,x] location
         10**10 is used to line up the unit to the magnitude of Angstrom
     '''
-    y_relative =edge_positions - y_range.reshape((ny,1))
-    exy = (C.h*C.c/C.eV)*10**10/(2*d_hkl*np.sin(theta_b+0.5*np.arctan(y_relative*pixel/dist_fd)))
-    exy = exy/1000  # change the unit to keV
+    y_relative = edge_positions - y_range.reshape((ny, 1))
+    exy = (C.h * C.c / C.eV) * 10 ** 10 / (2 * d_hkl * np.sin(theta_b + 0.5 * np.arctan(y_relative * pixel / dist_fd)))
+    exy = exy / 1000  # change the unit to keV
 
     ########### If e_range is set, use the set values  #################
-    if (type(e_range)== list) & (e_range[0]>=0) & (e_range[1]>e_range[0]):
+    if (type(e_range) == list) & (e_range[0] >= 0) & (e_range[1] > e_range[0]):
         # if e_range is set with reasonable number, then use the e_range to define beam top and bottom
         print('(nei_beam_parameters) Energy range is manually set to: \n'
-              '                      ',e_range)
-        beam[:,:]=0.0
-        range_index=np.where((exy>=(e_range[0]))&(exy<=(e_range[1])))
-        if len(range_index)>0:
-            beam[range_index]=1.0
-            top =[]
-            bot =[]
+              '                      ', e_range)
+        beam[:, :] = 0.0
+        range_index = np.where((exy >= (e_range[0])) & (exy <= (e_range[1])))
+        if len(range_index) > 0:
+            beam[range_index] = 1.0
+            top = []
+            bot = []
             for x in x_range:
-                beam_inrange = np.where(beam[:,x]>0)[0]
+                beam_inrange = np.where(beam[:, x] > 0)[0]
                 top.append(beam_inrange.max())
                 bot.append(beam_inrange.min())
-            beam_top=np.array(top)
-            beam_bot=np.array(bot)
+            beam_top = np.array(top)
+            beam_bot = np.array(bot)
         else:
             raise ValueError('(nei_beam_parameters) The wanted energy range is not available. '
                              'Please change to a reasonable range, or reset range to [0,0] '
@@ -187,51 +188,72 @@ def nei_beam_parameters(display,beam_files,setup, detector, fix_vertical_motion,
 
     ############   calculate gaussian width in terms of Energy  #############
     # energy at the absorption edge
-    edge_energies = np.array([exy[edge_positions[i],i] for i in x_range])
+    edge_energies = np.array([exy[edge_positions[i], i] for i in x_range])
     # energy of one pixel away
-    edge1_energies= np.array([exy[edge_positions[i]+1,i] for i in x_range])
-    e_per_pixel   = abs(edge_energies-edge1_energies).mean()
-    e_width    = edge_width * e_per_pixel   # gaussian edge width in terms of ENERGY
+    edge1_energies = np.array([exy[edge_positions[i] + 1, i] for i in x_range])
+    e_per_pixel = abs(edge_energies - edge1_energies).mean()
+    e_width = edge_width * e_per_pixel  # gaussian edge width in terms of ENERGY
     # In IDL, we also had the std from gaussian width
     print('(nei_beam_parameters) Gaussian Width measured from Se metal film: ')
-    print('                      Energy Width(eV) = ',e_width*1000)
-    print('                      Pixel Width      = ',edge_width)
+    print('                      Energy Width(eV) = ', e_width * 1000)
+    print('                      Pixel Width      = ', edge_width)
 
-   #######################  Fix Vertical Motion  ############################
+    #######################  Fix Vertical Motion  ############################
     '''
     ;since beam seems to move vertically, a non-vertical motion affected flat can be created if keyword FIX_VERTICAL_MOTION is set
     ;  this flat is used to I/Io correct the data
     if keyword_set( FIX_VERTICAL_MOTION ) then flt = find_best_average_flat(flat_path, dark)
 ;'''
 
-
     ##################### wrap up things to return  #########################
     class Edges:
-        def __init__(self,beam_top,beam_bot,beam_peak,edge_positions):
+        def __init__(self, beam_top, beam_bot, beam_peak, edge_positions):
             self.top = beam_top
             self.bot = beam_bot
             self.peak = beam_peak
             self.edge = edge_positions
-    edges = Edges(beam_top,beam_bot,beam_peak,edge_positions)
+
+    edges = Edges(beam_top, beam_bot, beam_peak, edge_positions)
 
     class Parameters:
-        def __init__(self,beam_files,beam,edges,mu_t,edge_width,edge_slope,peak_slope,exy,
-                     e_per_pixel,e_width):
+        def __init__(self, beam_files, beam, edges, mu_t, edge_width, edge_slope, peak_slope, exy,
+                     e_per_pixel, e_width):
             self.beam_files = beam_files
-            self.beam       = beam
-            self.edges      = edges
-            self.mu_t       = mu_t
-            self.edge_width = edge_width
-            self.e_per_pixel= e_per_pixel
-            self.e_width    = e_width
+            self.beam = beam
+            self.edges = edges
+            self.mu_t = mu_t
+            self.pixel_edge_width = edge_width
+            self.e_per_pixel = e_per_pixel
+            self.e_width = e_width
             self.edge_slope = edge_slope
             self.peak_slope = peak_slope
-            self.exy        = exy
-    beam_parameters = Parameters(beam_files,beam,edges,mu_t,edge_width,edge_slope,peak_slope,exy,
-                                 e_per_pixel,e_width)
+            self.exy = exy
+
+    beam_parameters = Parameters(beam_files, beam, edges, mu_t, edge_width, edge_slope, peak_slope, exy,
+                                 e_per_pixel, e_width)
     print('(nei_beam_parameters) Finished "nei_beam_parameters"')
 
-    return(beam_parameters)
+    return (beam_parameters)
 
 
+def get_beam_parameters(path='', e_range=0, Verbose=False):
+    ##############    get  Path for experiment data file  #######################
+    if path == '':
+        path = choose_path()
+    print("Data directory: ", path)
 
+    #############  get system setup info from arrangement.dat   ##########
+    setup = nei_get_arrangement(setup_type='File',path=path)
+    detector = setup.detector
+    # redefine energy_range if needed
+    if e_range != 0: setup.energy_range = e_range
+
+    ########  get beam files: averaged flat, dark, and edge  ############
+    beam_files = get_beam_files(path=path, Verbose=Verbose)
+
+    ########  get beam parameters    ####################################
+    beam_parameters = nei_beam_parameters(display=False, beam_files=beam_files,
+                                          setup=setup, detector=detector,
+                                          fix_vertical_motion=False,
+                                          clip=False, Verbose=Verbose)
+    return beam_parameters

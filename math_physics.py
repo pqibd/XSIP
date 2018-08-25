@@ -576,5 +576,3 @@ def murho_selenium_compounds(name, energies, interpol_kind='linear'):
         murho_interpol = murho_interpol.item()
     return murho_interpol
 
-
-
