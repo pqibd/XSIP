@@ -1,13 +1,14 @@
 import pandas as pd
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import torch
 from scipy.ndimage import median_filter
 from scipy.ndimage import gaussian_filter
 from scipy.interpolate import interp1d
 import math_physics as mphy
 from toolkit import *
-
 
 # __all__ = ['NeiSubDir','file_search',
 #            'nei_get_arrangement','read_average_tifs','get_tomo_files','nei_determine_murhos',
@@ -224,21 +225,21 @@ def get_beam_files(path,Verbose=False,clip=False, flip=False):
     return BeamFiles(flat,dark,edge,horizontal_low,horizontal_high,origin_beam_files)
 
 
-def get_tomo_files(path, multislice=False, slice=1, n_proj=0, Verbose=False, After=False, EdgeB=False):
+def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False, After=False, EdgeB=False):
 
     sub_dir = NeiSubDir(path, After=After, EdgeB=EdgeB)
     tomo_files = file_search(sub_dir.Tomo, '*tif')
 
     # get the tomo for ONE slice if multi slices exist.
     if multislice == True:
-        print('-----------------------------------------------------'
-              '\nReminder: "Slice" starts from 1. There is NO 0th slice'
-              '-----------------------------------------------------')
-        if slice < 1:
-            print('-----------------------------------------------------'
-                  '\nWarning: "Slice" starts from 1. "slice=' + str(slice) + ' is entered\n'
-                  '-----------------------------------------------------')
-        i_begin = n_proj * (slice - 1)
+        # print('-----------------------------------------------------'
+        #       '\nReminder: "Slice" starts from 1. There is NO 0th slice'
+        #       '-----------------------------------------------------')
+        # if slice < 1:
+        #     print('-----------------------------------------------------'
+        #           '\nWarning: "Slice" starts from 1. "slice=' + str(slice) + ' is entered\n'
+        #           '-----------------------------------------------------')
+        i_begin = n_proj * slice
         i_end = i_begin + n_proj
         tomo_files = tomo_files[i_begin:i_end]
         print('(get_tomo_files) Tomo files in 1 slice loaded')
@@ -475,7 +476,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     return s
 
 
-def idl_ct(sinogram,pixel,center_drift=0):
+def idl_ct(sinogram,pixel,center=0):
     """
 
     :param sinogram:
@@ -484,7 +485,7 @@ def idl_ct(sinogram,pixel,center_drift=0):
     :return:
     """
     from idlpy import IDL
-    recon = IDL.normalized_fbp(sinogram,dx=center_drift,pixel=pixel)
+    recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel)
 
     return recon
 
@@ -509,6 +510,10 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
     n_tomo = tomo_data.shape[0]
 
     mu_t = tomo_data*0.0 # make a 3_d array with the same shape of tomo_data
+    print('(calculate_mut) Started calculating MU_T in every tomo image at every [energy,horizontal] position')
+    if n_tomo >= 400:
+        print('|----------------------------------------|\n|', end='')
+    counter=0
     for i in range(n_tomo):
         mu_t[i]= -np.log((tomo_data[i]-dark)/flat_dark)
         mu_t[i]= np.nan_to_num(mu_t[i])  #replace nan values with 0.
@@ -529,48 +534,138 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
             filter_2d = filter_1d*(beam*0.0+1)
             # remove air from total mu_t
             mu_t[i] = mu_t[i]-filter_2d
-
+        if n_tomo>=400:
+            print('>' * (counter % int(n_tomo / 40) == 0), end='')
+        counter += 1
+    print('')
+        # print("\r                  %d%%" % (round((i/n_tomo)*100)),end='')
     # use a lowpass filter (gaussian filter) to remove some high frequency noise
     # Todo: decide the default value for "lowpass"
     pixel_gaussian_width = beam_parameters.pixel_edge_width
     if lowpass:
+        print('(calculate_mut) Applying lowpass filter along energy axis')
         mu_t = gaussian_filter(mu_t,[0,pixel_gaussian_width,0],truncate=3.0,mode='nearest')
 
     return mu_t
 
 
-def calculate_rhot(mu_rhos,mu_t,beam):
+def calculate_rhot(mu_rhos,mu_t,beam,algorithm='',use_torch=True):
+    """
+    calculate the $\rho t$ for every material at every horizontal position in every projection
+    :param mu_rhos: mu_rhos is obtained from "nei_determine_murhos"
+    :param mu_t: mu_t is obtained from "calculate_mut"
+    :param beam: beam is obtained from "beam_parameters.beam"
+    :param algorithm: The core algorithm to calculate $\rho t$.
+           Availabe options are ["nnls", "sKES_equation"] for now (Aug 27, 2018).
+           If "nnls": `scipy.optimize.nnls as nnls` will be used to perform linear regression
+                      for the spectrum at every horizontal position in every projection image.
+           If "sKES_equation": A pre-derived equation derived with least-square approach is used.
+                               Because matrix operation is used here for calculation, it is much
+                               faster than doing all the iterations with "nnls".
+    :return: A dictionay {Names: Sinograms of $\rho t$ with shape [ny,nx]}
+    """
 
-    import scipy.optimize.nnls as nnls
-    # turn dictionary into array
+    if algorithm=='':
+        algorithm=input('Choose algorithm from:  "nnls", "sKES_equation"\n'
+                        '(type and enter): ')
+
     names = list(mu_rhos.keys())
-    murhos_array = np.array(list(mu_rhos.values()))
+    mu_rhos = np.array(list(mu_rhos.values()))
 
-    n_tomo = mu_t.shape[0]
-    nx = mu_t.shape[2]
-    rho_t = np.zeros(shape=(n_tomo, nx, len(names)))
-    counter = 0
-    start_time = time.clock()
-    print('(calculate_rhot) Started calculating RHO_T with linear regression')
-    print('                 ', end='')
-    for t in range(n_tomo):
-        for x in range(nx):
-            df = pd.DataFrame(murhos_array[:, :, x]).T
-            df.columns = names
-            df['Mu_t'] = mu_t[t, :, x]  # mu_t [n_tomo,ny,nx]
-            # Only use the part in the 'beam' range
-            beam_range = beam[:, x] > 0
-            # do linear regression. Todo: Find the best method to do non-negative linear regression
-            coef = nnls(df[beam_range][names], df[beam_range]['Mu_t'])[0]
-            rho_t[t, x] = coef
-            # print progress
-            print('>' * (counter % int(n_tomo * nx / 48) == 0), end='')
-            counter += 1
-    print('\n                 Finished calculation for'
-          '\n                 ', n_tomo, ' tomo files in',
-          round(time.clock() - start_time, 2), 'seconds')
-    rts = {}
-    for i in range(len(names)):
-        rts[names[i]] = rho_t[:, :, i]
+    if algorithm == 'nnls':
+        print('(calculate_rhot) Algorithm: "scipy.optimize.nnls"')
+        import scipy.optimize.nnls as nnls
+        n_tomo = mu_t.shape[0]
+        nx = mu_t.shape[2]
+        rho_t = np.zeros(shape=(n_tomo, nx, len(names)))
+        counter = 0
+        start_time = time.clock()
+        print('(calculate_rhot) Started calculating RHO_T with linear regression')
+        print('                 ', end='')
+        for t in range(n_tomo):
+            for x in range(nx):
+                df = pd.DataFrame(mu_rhos[:, :, x]).T
+                df.columns = names
+                df['Mu_t'] = mu_t[t, :, x]  # mu_t [n_tomo,ny,nx]
+                # Only use the part in the 'beam' range
+                beam_range = beam[:, x] > 0
+                # do linear regression. Todo: Find the best method to do non-negative linear regression
+                coef = nnls(df[beam_range][names], df[beam_range]['Mu_t'])[0]
+                rho_t[t, x] = coef
+                # print progress
+                print('>' * (counter % int(n_tomo * nx / 48) == 0), end='')
+                counter += 1
+        print('\n                 Finished calculation for'
+              '\n                 ', n_tomo, ' tomo files in',
+              round(time.clock() - start_time, 2), 'seconds')
+        rts = {}
+        for i in range(len(names)):
+            rts[names[i]] = rho_t[:, :, i]
 
+    elif algorithm == 'sKES_equation':
+        print('(calculate_rhot) Algorithm: "sKES_equation"')
+        n_materials = mu_rhos.shape[0]
+        nx = mu_rhos.shape[2]
+        ny = mu_rhos.shape[1]
+        n_proj = mu_t.shape[0]
+        # mu_rhos.shape: [n_materials,ny,nx]  mu_t.shape:[n_proj,ny,nx]   beam.shape:[ny,nx]
+        if use_torch:
+            print('(calculate_rhot) Converting numpy.array to torch.tensor')
+            mu_rhos = torch.from_numpy(mu_rhos)
+            mu_t = torch.from_numpy(mu_t)
+            beam = torch.from_numpy(beam)
+            print('(calculate_rhot) Preparing matrix 1 of 2')
+            inverted_mean_square_murhos = torch.zeros(size=(n_materials, n_materials, nx))
+            for i in range(n_materials):
+                for j in range(n_materials):
+                    inverted_mean_square_murhos[i, j] = ((mu_rhos[i] * mu_rhos[j]) * beam).sum(dim=0) / (
+                        beam.sum(dim=0))
+            for x in range(nx):
+                inverted_mean_square_murhos[:, :, x] = torch.inverse(inverted_mean_square_murhos[:, :, x])
+
+            print('(calculate_rhot) Preparing matrix 2 of 2')
+            if n_proj >= 400:
+                print('|----------------------------------------|\n|', end='')
+            sum_vector = torch.zeros(size=(n_materials, n_proj, nx))
+            counter=0
+            for i in range(n_materials):
+                for j in range(n_proj):
+                    sum_vector[i, j] = (mu_rhos[i] * mu_t[j] * beam).sum(dim=0) / beam.sum(dim=0)
+                    if n_proj>=400:
+                        print('>' * (counter % int(n_materials * n_proj / 40) == 0), end='')
+                    counter += 1
+
+            print('\n(calculate_rhot) Multiplying matrix 1 and 2')
+            rho_t = sum_vector * 0.0
+            for i in range(n_materials):
+                rho_t[i] = (inverted_mean_square_murhos[i] * (sum_vector.transpose(1, 0))).sum(dim=1)
+            rho_t=rho_t.numpy()
+
+        else:
+            print('(calculate_rhot) Using "numpy"')
+            print('(calculate_rhot) Preparing matrix 1 of 2')
+            inverted_mean_square_murhos = np.zeros(shape=(n_materials, n_materials, nx))
+            for i in range(n_materials):
+                for j in range(n_materials):
+                    inverted_mean_square_murhos[i, j] = ((mu_rhos[i] * mu_rhos[j]) * beam).sum(axis=0) / (
+                        beam.sum(axis=0))
+            for x in range(nx):
+                inverted_mean_square_murhos[:, :, x] = np.linalg.inv(inverted_mean_square_murhos[:, :, x])
+
+            print('(calculate_rhot) Preparing matrix 2 of 2')
+            sum_vector = np.zeros(shape=(n_materials, n_proj, nx))
+            for i in range(n_materials):
+                for j in range(n_proj):
+                    sum_vector[i,j] = (mu_rhos[i] * mu_t[j] * beam).sum(axis=0) / (beam.sum(axis=0))
+
+            print('(calculate_rhot) Multiplying matrix 1 and 2')
+            rho_t = sum_vector * 0.0
+            for i in range(n_materials):
+                rho_t[i] = (inverted_mean_square_murhos[i] * (sum_vector.transpose(1, 0, 2))).sum(axis=1)
+
+        rts = {}
+        for i in range(len(names)):
+            rts[names[i]] = rho_t[i]
+    else: raise Exception('"Algorithm" is not properly defined. Please choose from ["nnls", "sKES_equation"]')
+    print('(calculate_rhot) Finished "calculate_rhot"')
     return rts

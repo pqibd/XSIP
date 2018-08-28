@@ -4,10 +4,10 @@ from beam_near_edge_imaging import beam_near_edge_imaging
 from nei_beam_parameters import nei_beam_parameters
 
 
-def nei(materials='', path='', n_proj=900,
+def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
         slice=0, multislice=False, ct=False, side_width=0,
         display=True, pop_up_image=False, setup_type='FILE',
-        order_files=False, e_range=0,lowpass=False,
+        order_files=False, e_range=0,lowpass=False,use_torch=True,
         fix_vertical_motion=False,  # maybe change default to True
         clip=False, flip=False, fix_cross_over=False,width_factor=1.0,
         use_sm_data=False, use_measured_standard=False,
@@ -45,7 +45,8 @@ def nei(materials='', path='', n_proj=900,
     if path == '':
         path = choose_path()
     print("Data directory: ",path)
-
+    # start counting time
+    start = time.clock()
     #############  get system setup info from arrangement.dat   ##########
     setup = nei_get_arrangement(setup_type, path)
     detector = setup.detector
@@ -57,11 +58,11 @@ def nei(materials='', path='', n_proj=900,
     beam_files = get_beam_files(path=path, clip=clip, flip=flip, Verbose=Verbose)
 
     #####################  get tomo data  ########################
-    print('(nei) Running "get_tomo_files"')
-    tomo_data = get_tomo_files(path,multislice=False,slice=1,n_proj=n_proj)
+    print('\n(nei) Running "get_tomo_files"')
+    tomo_data = get_tomo_files(path,multislice=multislice,slice=slice,n_proj=n_proj)
 
     #################### Get beam_parameters #####################
-    print('\n(nei) Running "nei_beam_parameters"\n')
+    print('\n(nei) Running "nei_beam_parameters"')
 
     beam_parameters = nei_beam_parameters(display=display, beam_files=beam_files,
                                               setup=setup, detector=detector,
@@ -74,7 +75,7 @@ def nei(materials='', path='', n_proj=900,
     
     - We get get mu_rho values for every material at every y,x position on the detector (in the image).
     - We calculate the $\mu t$ for every y position (representing energy) at every x position
-        (representing horizontal position in the sample, in every tomo image.
+        (representing horizontal position in the sample) in every tomo image.
     - We calculate the $\rho t$ at every horizontal position for every material.
     In theory, if there is only one material, we can solve the $\rho t$ with the information at one energy
     position, by $(\mu t)/(\mu/\rho)$. When we have 3 materials, we can solve it with 3 energy points.
@@ -98,7 +99,7 @@ def nei(materials='', path='', n_proj=900,
     ####################          calculate rho*t               #################
     beam = beam_parameters.beam
     print('\n(nei) Running "calculate_rhot"')
-    rts = calculate_rhot(mu_rhos, mu_t, beam)
+    rts = calculate_rhot(mu_rhos, mu_t, beam,algorithm=algorithm,use_torch=use_torch)
 
     class Result:
         def __init__(self, beam_parameters, mu_rhos, mu_t,rts):
@@ -106,5 +107,6 @@ def nei(materials='', path='', n_proj=900,
             self.mu_rhos = mu_rhos
             self.mu_t = mu_t
             self.rts = rts
-
+    print('\n(nei) Total running time for "nei":'
+          '\n     ',round(time.clock()-start,2),'seconds')
     return Result(beam_parameters, mu_rhos, mu_t,rts)

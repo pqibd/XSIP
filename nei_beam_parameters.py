@@ -3,8 +3,8 @@ import math
 import scipy.constants as C
 
 
-def nei_beam_parameters(display, beam_files, setup, detector, fix_vertical_motion,
-                        clip, no_fit=False, Verbose=False, poly_degree=5):
+def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical_motion=False,
+                        clip=False, no_fit=False, Verbose=False, poly_degree=5):
     '''
     Unit of exy in the returned parameters: keV
     :param display:
@@ -42,7 +42,7 @@ def nei_beam_parameters(display, beam_files, setup, detector, fix_vertical_motio
     lamb = (C.c * C.h / C.eV) / (e_edge * 1000) * (10 ** 10)  # WaveLength, Unit: Angstroms
     theta_b = math.asin(lamb / (2 * d_hkl))  # lambda = 2dsin(theta)
     print('(nei_beam_parameters) Bragg angle in degree:\n'
-          '                     ', theta_b * 180 / math.pi)
+          '                     ', round(theta_b * 180 / math.pi, 3))
 
     # What is this?
     bfact = math.cos(theta_b + chi) / math.cos(theta_b - chi)
@@ -130,7 +130,7 @@ def nei_beam_parameters(display, beam_files, setup, detector, fix_vertical_motio
         plt.show()
 
     ################ Find fwhm and then gaussian with as the edge width##
-    ################ To be fixed not sure what is the right way to get the correct real values
+    ################ To be fixed not sure what is the best way to get the correct real values
     # get edge_widths by calculating fwhm for derivative of each spectrum
     # It could have false values on left and right end when noise is too much
     # fwhms = []
@@ -195,15 +195,15 @@ def nei_beam_parameters(display, beam_files, setup, detector, fix_vertical_motio
     e_width = edge_width * e_per_pixel  # gaussian edge width in terms of ENERGY
     # In IDL, we also had the std from gaussian width
     print('(nei_beam_parameters) Gaussian Width measured from Se metal film: ')
-    print('                      Energy Width(eV) = ', e_width * 1000)
-    print('                      Pixel Width      = ', edge_width)
+    print('                      Energy Width(eV) = ', round(e_width * 1000, 2))
+    print('                      Pixel Width      = ', round(edge_width, 2))
 
     #######################  Fix Vertical Motion  ############################
     '''
     ;since beam seems to move vertically, a non-vertical motion affected flat can be created if keyword FIX_VERTICAL_MOTION is set
     ;  this flat is used to I/Io correct the data
     if keyword_set( FIX_VERTICAL_MOTION ) then flt = find_best_average_flat(flat_path, dark)
-;'''
+    ;'''
 
     ##################### wrap up things to return  #########################
     class Edges:
