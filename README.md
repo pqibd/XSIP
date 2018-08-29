@@ -3,7 +3,7 @@
 # Energy Dispersive Xray Absorption Spectroscopy
 A python version of data analysis for my phd project: selenium speciation with spectral kes imaging method.
 Most of the analysis programs had been written with IDL by Dr. L. Dean Chapman. This repository aims to 
-- (1) reproduce things have been done with IDL, and 
+- (1) reproduce things have been done with IDL 
 - (2) optimize the computation and extend it for furthur analysis.
 
 # How to
