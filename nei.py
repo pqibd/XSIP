@@ -1,12 +1,10 @@
 from near_edge_imaging import *
-import numpy as np
-from beam_near_edge_imaging import beam_near_edge_imaging
 from nei_beam_parameters import nei_beam_parameters
 
 
 def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
         slice=0, multislice=False, ct=False, side_width=0,
-        display=True, pop_up_image=False, setup_type='FILE',
+        display=True, pop_up_image=False,
         order_files=False, e_range=0,lowpass=False,use_torch=True,
         fix_vertical_motion=False,  # maybe change default to True
         clip=False, flip=False, fix_cross_over=False,width_factor=1.0,
@@ -15,22 +13,24 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
         put_dark_back=False, fix_detector_factor=0,
         Verbose=False):
     """
-    Get beam_parameters, then do the beam_near_edge_imaging. Get $\mu t$ for all
-    projection images.
+    Get beam_parameters.
+    Get $\mu/\rho$ {n_materials:2d-array([n_energies,n_horizontal_positions]),...}
+    Get $\mu t$ [n_projections,n_energies,n_horizontal_positions]
+    Get $\rho t$ {material: 2d-array([n_projection,n_horizontal_positions]),...}
     :param materials:
     :param path:
-    :param left:
-    :param right:
+    :param ct:
+    :param side_width:
     :param n_proj:
     :param slice:
     :param multislice:
-    :param projection:
     :param e_range:
     :param fix_vertical_motion:
     :param fix_cross_over:
     :param flat_gamma:
     :param Verbose:
-    :return:
+    :return: $\rho t$ {material: 2d-array([n_projection,n_horizontal_positions]),...}.
+             Values in the dictionary are sinograms in 2d-arrays.
     """
 
     ###############   define materials       ######################
@@ -47,10 +47,10 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     print("Data directory: ",path)
     # start counting time
     start = time.clock()
-    #############  get system setup info from arrangement.dat   ##########
-    setup = nei_get_arrangement(setup_type, path)
+    #############  get system setup info from arrangement.dat file ##########
+    setup = nei_get_arrangement(path)
     detector = setup.detector
-    # redefine energy_range if needed
+    # overwrite energy_range from arrangement file if needed
     if e_range != 0: setup.energy_range = e_range
 
     ########  get beam files: averaged flat, dark, and edge  ############

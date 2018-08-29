@@ -1,5 +1,4 @@
 import pandas as pd
-import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -60,7 +59,7 @@ def file_search(path, file_filter='*'):
     return files
 
 
-def nei_get_arrangement(setup_type, path):
+def nei_get_arrangement(path,setup_type='FILE'):
     class get_arrangement:
         def __init__(self, path):
             filename = path + r'\arrangement.dat'
@@ -85,7 +84,7 @@ def nei_get_arrangement(setup_type, path):
                 self.dist_fd = float(data.loc[1, 'dist_fd'])
                 self.detector = self.detector(data)
             except:
-                print('Error: Something is wrong when reading in the arrangement file')
+                raise Exception('Error: Something is wrong when reading in the arrangement file')
 
         class detector:
             def __init__(self, data):
@@ -126,7 +125,7 @@ def nei_get_arrangement(setup_type, path):
 def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
                       rotate_90=False,twelve_bit=0):
     # read all the image files into a 3D array[n_images,rows,columns],
-    # take the average along the images, so that we get an average image
+    # take the average along the images, so that we get an average image.
     # Returned value is 2d array
     from PIL import Image
 
@@ -141,12 +140,14 @@ def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
 
 def get_beam_files(path,Verbose=False,clip=False, flip=False):
     '''
-    return raw_images, only averaged, nothing else.
+    return averaged flat, dark, edge images in form of 2d-arrays.
     :param path:
     :param Verbose:
-    :param clip:
+    :param clip: Used only to trim off the left and right black area out of the beam.
+                 This is usually not necessary, because the beam is supposed to fill
+                 the image all the way horizontally
     :param flip:
-    :return:
+    :return: beam_files: averaged flat, dark, edge images in form of 2d-arrays.
     '''
 
     sub_dir = NeiSubDir(path, After=False, EdgeB=False)
@@ -170,12 +171,14 @@ def get_beam_files(path,Verbose=False,clip=False, flip=False):
     n_vertical   = image_size[0] # Number of energy points (the vertical direction on detector)
 
     class OriginBeamFiles:
-        def __init__(self,flat,dark,edge,n_horizontal,n_vertical):
+        """
+        This is used to keep a copy of beam files with their original shape when clip is true.
+        """
+        def __init__(self,flat,dark,edge):
             self.flat        = flat
             self.dark        = dark
             self.edge        = edge
-            self.n_horizontal= n_horizontal
-            self.n_vertical  = n_vertical
+
     origin_beam_files = OriginBeamFiles(flat,dark,edge,n_horizontal,n_vertical)
 
     horizontal_low = 0; horizontal_high= n_horizontal  # Or n_horizontal-1?????
@@ -226,11 +229,22 @@ def get_beam_files(path,Verbose=False,clip=False, flip=False):
 
 
 def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False, After=False, EdgeB=False):
+    """
+    Read all the tomo files in tomo folder, or n_proj images for one slice of CT.
+    :param path:
+    :param multislice: If True, n_proj images will be read in for the wanted single slice.
+    :param slice: Which slice do you want? Start from 0.
+    :param n_proj: How many projection images are there in one slice
+    :param Verbose:
+    :param After:
+    :param EdgeB:
+    :return: 3d-array [n_tomo(n_proj), n_energies, n_horizontal_positions]
+    """
 
     sub_dir = NeiSubDir(path, After=After, EdgeB=EdgeB)
     tomo_files = file_search(sub_dir.Tomo, '*tif')
 
-    # get the tomo for ONE slice if multi slices exist.
+    # get the tomo images for ONE slice when there are multislices of projections in tomo image folder.
     if multislice == True:
         # print('-----------------------------------------------------'
         #       '\nReminder: "Slice" starts from 1. There is NO 0th slice'
@@ -245,35 +259,43 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False, A
         print('(get_tomo_files) Tomo files in 1 slice loaded')
     n_tomo = len(tomo_files)
     print('(get_tomo_files) Number of Tomo files: ', n_tomo)  # equal to n_projections
+
     # tomo files to data array
     from PIL import Image
+    counter=0
     tomo_data = []
+    if n_tomo >= 200:
+        print('|--------------------------------------------------|\n|', end='')
     for i in range(n_tomo):
         tomo_data.append(np.array(Image.open(tomo_files[i])))
+        if n_tomo >= 200:
+            print('>' * (counter % int(n_tomo / 50) == 0), end='')
+    print()
     tomo_data = np.array(tomo_data)
     return (tomo_data)
 
 
-def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interpol_kind='linear',
+def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='linear',
                          use_sm_data=False, use_measured_standard=False):
     '''
     For every compound, every horizontal position, get the murho value for that
-    compound at every energy point (y position on the detector)
-    ; mats structure
-    ; tags:
-    ; names - what you call each material, i.e. 'K2SeO4'
-    ; datasource - how we find the mu/rhos
-    ;       - system   : get it from calculation
-    ;       - FILE : get it from a file
-            - standard: get murho from experiment standard. Stardard data are collected with
-                        current experiment setting, and standard selenium compound solution ,etc.
-    ; i.e. mats = { names:names, datasource:datasource }
-    ; where: names = ['Water', 'Bone', 'Selenite', 'U'   ]
-    ;        types = [  'system',  'system',     'FILE', 'system' ]
-    :param material_datasource:
+    compound at every energy point (y position on the detector). Ways to get murho values
+    are defined by "source".
+    materials structure:
+        - names: what you call each material, i.e. 'K2SeO4'
+        - sources: how we find the mu/rhos for that element or compound
+            - system   : get it from calculation with known chemical information
+            - FILE : get it from a file
+            - standard: get murho from experiment standard. Stardard data are collected
+                         with current experiment setting, and standard selenium compound solution ,etc.
+    i.e. materials = { names:names, sources:sources }
+    where: names = ['Water', 'Bone', 'Selenite', 'U'   ]
+           sources = [  'system',  'system',     'FILE', 'system' ]
+    :param materials:
     :param exy:
     :param gaussian_energy_width:
-    :param interpol_kind: default value is 'linear'
+    :param interpol_kind: default value is 'linear'. See 'scipy.interpolate.interp1d' for other available
+                          "interpol_kind"s.
     :param use_sm_data:
     :param use_measured_standard:
     :return:
@@ -283,18 +305,20 @@ def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interp
     emin = np.median(exy, axis=1).min()
     emax = np.median(exy, axis=1).max()
     e_range = emax - emin
+    # create an energies array with the size 5 * e_range
     energies = np.linspace(emin - 2 * (e_range), emax + 2 * (e_range), 5 * ny)
 
     murhos = {}
-    for name, datasource in material_datasource.items():
+    for name, source in materials.items():
         print('(nei_determine_murhos) Geting murho data for ' + name)
-        if datasource.lower() == 'file':
+        if source.lower() == 'file':
             # get murho from saved file
             mu_rho = mphy.murho_selenium_compounds(name, energies)
-        elif datasource.lower() == 'system':
+        elif source.lower() == 'system':
             # get murho by calculating it for every element
             mu_rho = mphy.murho(name, energies)
-        elif datasource.lower() == 'standard':
+        elif source.lower() == 'standard':
+            # Todo:
             # get murho from experiment standard. Stardard data are collected with current experiment setting,
             # and standard selenium compound solution ,etc.
             pass
@@ -310,12 +334,12 @@ def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interp
         width = gaussian_energy_width / energies_stepsize
         ###### auto gaussian blur
         for name, value in murhos.items():
-            # truncate 3.0 means 3 sigma will be the width used for gaussian filter
+            # truncate 3.0 means 3*sigma defines the width (number of pixels) to apply gaussian filter
             murhos[name] = gaussian_filter(value, sigma=width, mode='nearest', truncate=3.0)
     #     ###### manual gaussian blur
     #     width_int = round(width)
     #     sigma_3X = 3*width_int
-    #     sigma_3X = max(sigma_3X,5)
+    #     sigma_3X = max(sigma_3X,5) # we don't want the sigma_3X too small
     #     region_3sigma = np.linspace(-sigma_3X,sigma_3X,int(2*sigma_3X)+1)
     #     gauss_filter = np.exp((-region_3sigma**2)/(2*width**2))
     #     total_gf = gauss_filter.sum()
@@ -326,15 +350,11 @@ def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interp
     ############## Use interpol to get the murho value at every energy point in exy for every element  ####
     murhos_all = {}
     print('(nei_determine_murhos) Started doing interpolation to bundle MU_RHOS and EXY')
-    for name in murhos.keys():  # literate over every compound, save each 2d array in dictionary
-        # print('                       Started interpolation for ' + name)
-        # print('                       ',end='')
+    for name in murhos.keys():  # iterate over every compound, save each 2d array in dictionary
         interpol = interp1d(energies, murhos[name], kind=interpol_kind)  # Get the interpol object for this compound
         murhos_exy = np.empty((ny, nx)) # to save the murhos for one compound
         for x in range(nx):
             murhos_exy[:, x] = interpol(exy[:, x])  # do the interpol prediction
-            # print('#'*(x%int(nx/50)==0),end='')
-            # if x==nx-1: print()
         murhos_all[name] = murhos_exy  # save to dict
         print('                       Finished interpolation for ' + name)
     print('(nei_determine_murhos) Finished "nei_determine_murhos"')
@@ -343,12 +363,16 @@ def nei_determine_murhos(material_datasource, exy, gaussian_energy_width, interp
 
 def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     '''
+    Locate the peak positions in the beam. Decide the useful region in the beam we are going to keep.
     :param flat_dark: flat-dark, 2D array
-    :param threshold: determines where we cut the beam on the energy axis
-    :param no_fit:
+    :param threshold: percentage of the max value. Beam values higher than threshold will be kept.
+    :param no_fit: No polynomial fit for the peak positions in the beam.
     :param Verbose:
-    :param poly_deg:
-    :return:
+    :param poly_deg: The degree parameter for doing polynomial fit.
+    :return: Peak position in flat_dark image.
+             Beam region we will use for analysis that follows.
+             Top positions of the useful beam region.
+             Bottom postions of the useful beam region.
     '''
     shape = flat_dark.shape
     nx = shape[1]; ny = shape[0]
@@ -392,7 +416,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
 
     beam  = flat_dark*0 # Create zero array with the same shape of flat_dark
 
-    class BeamEdgesClass:
+    class BeamEdges:
         def __init__(self,top,bot,peak,beam):
             self.top=top
             self.bot=bot
@@ -402,7 +426,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     if no_fit: # return with no polynomial fit
         for i in range(nx):
             beam[bot_positions[i]:top_positions[i], i] = 1.0
-        s = BeamEdgesClass(top_positions, bot_positions, peak_positions, beam)
+        s = BeamEdges(top_positions, bot_positions, peak_positions, beam)
         return(s)
 
     ###############  Doing polynomial fit   ##############################
@@ -420,7 +444,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     for i in range(nx): # Light it up between top and bottom
         beam[bot_positions[i]:top_positions[i]+1,i]=1.0 # Note the +1 to include the top position line
 
-    s = BeamEdgesClass(top_positions, bot_positions, peak_positions_poly, beam)
+    s = BeamEdges(top_positions, bot_positions, peak_positions_poly, beam)
 
     if Verbose:
         plt.scatter(np.arange(len(peak_positions)),peak_positions,s=2,alpha=0.2,label='Before polynomial')
@@ -478,11 +502,11 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
 
 def idl_ct(sinogram,pixel,center=0):
     """
-
-    :param sinogram:
-    :param pixel: pixel size in centimeter
-    :param center_drift:
-    :return:
+    CT reconstruction with the "normalized_fbp" function from IDL. Note: Licensed IDL software is required.
+    :param sinogram: 2d-array [n_projections,n_horizontal_positions]
+    :param pixel: pixel size in centimeter. For example: 0.0009 for 9um.
+    :param center: Default 0. The sample rotation center during CT imaging.
+    :return: reconstructed square 2d-array [n_horizontal_positions,n_horizontal_positions]
     """
     from idlpy import IDL
     recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel)
@@ -492,15 +516,15 @@ def idl_ct(sinogram,pixel,center=0):
 
 def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0):
     """
-
+    mu*t =  mu/rho * rho * t = -ln[(tomo-dark)/(flat-dark)]
     :param tomo_data:
     :param beam_parameters:
-    :param lowpass: Use gaussian filter to smooth the mu_t spectrum
+    :param lowpass: Use gaussian filter to smooth the mu_t spectrum along the energy axis
     :param ct: If ct, use the left and right of projection to remove air absorption
-    :param side_width: the width used for the above parameter
-    :return: mu_t: 3 dimension array [n_tomo, ny, nx]
+    :param side_width: the width used for the "ct" parameter
+    :return: mu_t: 3d-array [n_tomo, ny, nx]
     """
-    ####################  calculate -ln(r)=  mu/rho * rho * t   #################
+    ####################  calculate -ln[(tomo-dark)/(flat-dark)]   #################
     # tomo_data.shape is [n_tomo,ny,nx]
     flat = beam_parameters.beam_files.flat
     dark = beam_parameters.beam_files.dark
@@ -509,10 +533,10 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
     nx = beam.shape[1]; ny = beam.shape[0]
     n_tomo = tomo_data.shape[0]
 
-    mu_t = tomo_data*0.0 # make a 3_d array with the same shape of tomo_data
+    mu_t = tomo_data*0.0 # make a 3_d array with the same shape of tomo_data, fill with zeros
     print('(calculate_mut) Started calculating MU_T in every tomo image at every [energy,horizontal] position')
-    if n_tomo >= 400:
-        print('|----------------------------------------|\n|', end='')
+    if n_tomo >= 200:
+        print('|--------------------------------------------------|\n|', end='')
     counter=0
     for i in range(n_tomo):
         mu_t[i]= -np.log((tomo_data[i]-dark)/flat_dark)
@@ -520,7 +544,7 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
 
         if ct: # remove air absorption. Calculated from the left and right of the projection image,
                # where there should be only air, no sample.
-            if side_width==0: # making sure side_width is valid.
+            if side_width<=0: # making sure side_width is valid.
                 raise Exception('When "CT" is True, "side_width" is used to remove air absorption, and '
                                 '"side_width" has to be an integer >0')
             mut_left_total = (mu_t[i]*beam)[:,0:side_width].sum()
@@ -529,12 +553,12 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
             mut_right_count= beam[:,-side_width:].sum()
             mut_left_avg   = mut_left_total/mut_left_count
             mut_right_avg  = mut_right_total/mut_right_count
-            xp = np.arange(nx)
-            filter_1d = mut_left_avg+(mut_right_avg-mut_left_avg)*((xp-side_width/2)/(len(xp)-side_width))
-            filter_2d = filter_1d*(beam*0.0+1)
-            # remove air from total mu_t
+            x_position = np.arange(nx)
+            filter_1d = mut_left_avg+(mut_right_avg-mut_left_avg)*((x_position-side_width/2)/(nx-side_width))
+            filter_2d = filter_1d*(beam*0.0+1.0)
+            # remove air absorption from total mu_t
             mu_t[i] = mu_t[i]-filter_2d
-        if n_tomo>=400:
+        if n_tomo>=200:
             print('>' * (counter % int(n_tomo / 40) == 0), end='')
         counter += 1
     print('')
@@ -562,6 +586,7 @@ def calculate_rhot(mu_rhos,mu_t,beam,algorithm='',use_torch=True):
            If "sKES_equation": A pre-derived equation derived with least-square approach is used.
                                Because matrix operation is used here for calculation, it is much
                                faster than doing all the iterations with "nnls".
+                               [Ref: Ying Zhu,2012 Dissertation]
     :return: A dictionay {Names: Sinograms of $\rho t$ with shape [ny,nx]}
     """
 
@@ -624,14 +649,14 @@ def calculate_rhot(mu_rhos,mu_t,beam,algorithm='',use_torch=True):
                 inverted_mean_square_murhos[:, :, x] = torch.inverse(inverted_mean_square_murhos[:, :, x])
 
             print('(calculate_rhot) Preparing matrix 2 of 2')
-            if n_proj >= 400:
-                print('|----------------------------------------|\n|', end='')
+            if n_proj >= 200:
+                print('|--------------------------------------------------|\n|', end='')
             sum_vector = torch.zeros(size=(n_materials, n_proj, nx))
             counter=0
             for i in range(n_materials):
                 for j in range(n_proj):
                     sum_vector[i, j] = (mu_rhos[i] * mu_t[j] * beam).sum(dim=0) / beam.sum(dim=0)
-                    if n_proj>=400:
+                    if n_proj>=200:
                         print('>' * (counter % int(n_materials * n_proj / 40) == 0), end='')
                     counter += 1
 

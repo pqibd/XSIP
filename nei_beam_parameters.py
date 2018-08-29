@@ -158,7 +158,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     '''
         edge_positions-y_index: get the relative position to edge. Use matrix to do it
         exy is the energy(eV) at every [y,x] location
-        10**10 is used to line up the unit to the magnitude of Angstrom
+        10**10 is used to line up the unit to "Angstrom"
     '''
     y_relative = edge_positions - y_range.reshape((ny, 1))
     exy = (C.h * C.c / C.eV) * 10 ** 10 / (2 * d_hkl * np.sin(theta_b + 0.5 * np.arctan(y_relative * pixel / dist_fd)))
@@ -189,7 +189,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     ############   calculate gaussian width in terms of Energy  #############
     # energy at the absorption edge
     edge_energies = np.array([exy[edge_positions[i], i] for i in x_range])
-    # energy of one pixel away
+    # energy of one pixel away from edge
     edge1_energies = np.array([exy[edge_positions[i] + 1, i] for i in x_range])
     e_per_pixel = abs(edge_energies - edge1_energies).mean()
     e_width = edge_width * e_per_pixel  # gaussian edge width in terms of ENERGY
@@ -198,7 +198,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     print('                      Energy Width(eV) = ', round(e_width * 1000, 2))
     print('                      Pixel Width      = ', round(edge_width, 2))
 
-    #######################  Fix Vertical Motion  ############################
+    #######################  Todo: Fix Vertical Motion  ############################
     '''
     ;since beam seems to move vertically, a non-vertical motion affected flat can be created if keyword FIX_VERTICAL_MOTION is set
     ;  this flat is used to I/Io correct the data
