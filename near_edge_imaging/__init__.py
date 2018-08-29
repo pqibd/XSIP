@@ -179,7 +179,7 @@ def get_beam_files(path,Verbose=False,clip=False, flip=False):
             self.dark        = dark
             self.edge        = edge
 
-    origin_beam_files = OriginBeamFiles(flat,dark,edge,n_horizontal,n_vertical)
+    origin_beam_files = OriginBeamFiles(flat,dark,edge)
 
     horizontal_low = 0; horizontal_high= n_horizontal  # Or n_horizontal-1?????
 
@@ -270,6 +270,7 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False, A
         tomo_data.append(np.array(Image.open(tomo_files[i])))
         if n_tomo >= 200:
             print('>' * (counter % int(n_tomo / 50) == 0), end='')
+        counter+=1
     print()
     tomo_data = np.array(tomo_data)
     return (tomo_data)
@@ -559,7 +560,7 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
             # remove air absorption from total mu_t
             mu_t[i] = mu_t[i]-filter_2d
         if n_tomo>=200:
-            print('>' * (counter % int(n_tomo / 40) == 0), end='')
+            print('>' * (counter % int(n_tomo / 50) == 0), end='')
         counter += 1
     print('')
         # print("\r                  %d%%" % (round((i/n_tomo)*100)),end='')
@@ -657,7 +658,7 @@ def calculate_rhot(mu_rhos,mu_t,beam,algorithm='',use_torch=True):
                 for j in range(n_proj):
                     sum_vector[i, j] = (mu_rhos[i] * mu_t[j] * beam).sum(dim=0) / beam.sum(dim=0)
                     if n_proj>=200:
-                        print('>' * (counter % int(n_materials * n_proj / 40) == 0), end='')
+                        print('>' * (counter % int(n_materials * n_proj / 50) == 0), end='')
                     counter += 1
 
             print('\n(calculate_rhot) Multiplying matrix 1 and 2')
