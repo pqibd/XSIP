@@ -517,7 +517,7 @@ def idl_ct(sinogram,pixel,center=0):
 
 def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0):
     """
-    mu*t =  mu/rho * rho * t = -ln[(tomo-dark)/(flat-dark)]
+    mu*t =  (mu/rho) * (rho * t) = -ln[(tomo-dark)/(flat-dark)]
     :param tomo_data:
     :param beam_parameters:
     :param lowpass: Use gaussian filter to smooth the mu_t spectrum along the energy axis
@@ -695,3 +695,112 @@ def calculate_rhot(mu_rhos,mu_t,beam,algorithm='',use_torch=True):
     else: raise Exception('"Algorithm" is not properly defined. Please choose from ["nnls", "sKES_equation"]')
     print('(calculate_rhot) Finished "calculate_rhot"')
     return rts
+
+
+def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=True):
+    """
+    Spectral KES for m-components SNR equation is used for SNR calculation.
+    [Ref: Ying Zhu,2012 Dissertation]
+    :param mu_rhos:
+    :param mu_t:
+    :param rho_t:
+    :param beam_parameters:
+    :param tomo_data:
+    :param use_torch: Default True. Use torch.tensor for matrix operations. If False,
+                      numpy.array is used instead, which is about half the speed of
+                      tensor for the computation here.
+    :return: snrs. Numpy array, in shape of [n_materials,n_projections,n_horizontal_positions]
+    """
+    if use_torch:
+        print('(signal_noise_ratio) Preparing things for calculation')
+        mu_rhos = torch.from_numpy(np.array(list(mu_rhos.values()))).float()
+        mu_t = torch.from_numpy(mu_t).float()
+        rho_t = torch.from_numpy(np.array(list(rho_t.values()))).float()
+        beam = torch.from_numpy(beam_parameters.beam).float()
+        flat = torch.from_numpy(beam_parameters.beam_files.flat).float()
+        dark = torch.from_numpy(beam_parameters.beam_files.dark).float()
+        beam_width = beam.sum(dim=0)
+        n_materials = mu_rhos.size(0)
+        n_energies = mu_rhos.size(1)
+        nx = mu_rhos.size(2)
+        n_proj = mu_t.size(0)
+        # Todo: Use raw tomo_data? or filtered tomo_data from mu_t?
+        matrix1 = 1/(tomo_data-dark)+1/(flat-dark)
+
+        inverted_mean_square_murhos = torch.zeros(size=(n_materials,n_materials,nx),dtype=torch.float)
+        for i in range(n_materials):
+            for j in range(n_materials):
+                inverted_mean_square_murhos[i,j] = (mu_rhos[i]*mu_rhos[j]*beam).sum(dim=0)/beam_width
+        for x in range(nx):
+            inverted_mean_square_murhos[:,:,x] = torch.inverse(inverted_mean_square_murhos[:,:,x])
+
+        loops = n_materials*n_proj
+        print('(signal_noise_ratio) Calculating SIGNAL to NOISE RATIO')
+        if loops >= 200:
+            print('|--------------------------------------------------|\n|', end='')
+        counter = 0
+        snrs = torch.zeros(size=(n_materials,n_proj,nx),dtype=torch.float)
+        for m in range(n_materials):
+            matrix_temp=torch.zeros(size=(n_materials,n_energies,nx),dtype=torch.float)
+            for e in range(n_energies):
+                matrix_temp[:,e,:] = inverted_mean_square_murhos[m]*mu_rhos[:,e,:]
+            matrix2 = matrix_temp.sum(dim=0)**2  #[n_energies,nx]
+            denom = torch.zeros(size=(n_proj,nx),dtype=torch.float)
+            for p in range(n_proj):
+                # Todo: make sure where the "beam_width" should be placed
+                denom[p] = torch.sqrt((matrix2 * (matrix1[p] * beam)).sum(dim=0) / beam_width)
+                if loops >= 200:
+                    print('>' * (counter % int(loops / 50) == 0), end='')
+                counter += 1
+            snrs[m] = rho_t[m] / denom  # [n_proj,nx]
+        print()
+        snrs = snrs.numpy()
+
+    else: # use numpy
+        mu_rhos = np.array(list(mu_rhos.values())).astype(float) #[n_materials,n_energies,nx]
+        rho_t = np.array(list(rho_t.values())).astype(float) #[n_materials,n_projections,nx]
+        beam = beam_parameters.beam.astype(float)  #[n_energies,nx]
+        flat = beam_parameters.beam_files.flat.astype(float)
+        dark = beam_parameters.beam_files.dark.astype(float)
+        beam_width = beam.sum(axis=0)
+        n_materials = mu_rhos.shape[0]
+        n_energies = mu_rhos.shape[1]
+        nx = mu_rhos.shape[2]
+        n_proj = mu_t.shape[0]
+
+        matrix1 = 1/(tomo_data-dark)+1/(flat-dark) #[n_proj,n_energies,nx]
+
+        # mu_rhos.shape: [n_materials,ny,nx]  mu_t.shape:[n_proj,ny,nx]   beam.shape:[ny,nx]
+        inverted_mean_square_murhos = np.zeros(shape=(n_materials, n_materials, nx))
+        for i in range(n_materials):
+            for j in range(n_materials):
+                inverted_mean_square_murhos[i, j] = ((mu_rhos[i] * mu_rhos[j]) * beam).sum(axis=0) / beam_width
+        for x in range(nx):
+            inverted_mean_square_murhos[:, :, x] = np.linalg.inv(inverted_mean_square_murhos[:, :, x])
+
+        loops = n_materials*n_proj
+        print('(signal_noise_ratio) Calculating SIGNAL to NOISE RATIO')
+        if loops >= 200:
+            print('|--------------------------------------------------|\n|', end='')
+        counter = 0
+        snrs = np.zeros((n_materials, n_proj, nx))
+        for m in range(n_materials):
+            matrix_temp = np.zeros((n_materials,n_energies,nx),float)
+            for e in range(n_energies):
+                matrix_temp[:, e, :] = inverted_mean_square_murhos[m] * mu_rhos[:, e, :]
+            matrix2 = matrix_temp.sum(axis=0) ** 2  # [n_energies,nx]
+            denom = np.zeros((n_proj, nx),float)
+            for p in range(n_proj):
+                # Todo: make sure where the "beam_width" should be placed
+                denom[p] = np.sqrt((matrix2 * (matrix1[p] * beam)).sum(axis=0) / beam_width)
+                if loops >= 200:
+                    print('>' * (counter % int(loops / 50) == 0), end='')
+                counter += 1
+            snrs[m] = rho_t[m] / denom  # [n_proj,nx]
+            print()
+
+    return snrs # [n_materials,n_proj,nx]
+
+
+
+

@@ -4,13 +4,12 @@ from nei_beam_parameters import nei_beam_parameters
 
 def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
         slice=0, multislice=False, ct=False, side_width=0,
-        display=True, pop_up_image=False,
-        order_files=False, e_range=0,lowpass=False,use_torch=True,
+        display=True, e_range=0,lowpass=False,use_torch=True,
         fix_vertical_motion=False,  # maybe change default to True
         clip=False, flip=False, fix_cross_over=False,width_factor=1.0,
         use_sm_data=False, use_measured_standard=False,
         use_weights=False, energy_weights=0, flat_gamma=1.0,
-        put_dark_back=False, fix_detector_factor=0,
+        put_dark_back=False, fix_detector_factor=0, snr=False,
         Verbose=False):
     """
     Get beam_parameters.
@@ -101,6 +100,14 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     print('\n(nei) Running "calculate_rhot"')
     rts = calculate_rhot(mu_rhos, mu_t, beam,algorithm=algorithm,use_torch=use_torch)
 
+    ####################   get signal to noise ratio if needed  #################
+    snrs=''
+    if snr:
+        print('(nei) Running "signal_noise_ratio"')
+        snrs = signal_noise_ratio(mu_rhos,mu_t,rts,beam_parameters,tomo_data,use_torch)
+
+    ####################   Wrap up results and return  ###########################
+    beam_parameters.setup=setup
     class Result:
         def __init__(self, beam_parameters, mu_rhos, mu_t,rts):
             self.beam_parameters = beam_parameters

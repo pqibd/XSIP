@@ -131,7 +131,7 @@ def gaussfit(x, y, *estimate):
 
 def polyfit(x, y, degree):
     '''
-    use the numpy.polyfit method, but directly returns the y_values for the fitted polynomial function
+    use the numpy.polyfit method, and directly returns the y_values for the fitted polynomial function
     :param x:
     :param y:
     :param degree:
