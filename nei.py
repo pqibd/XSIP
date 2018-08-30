@@ -101,19 +101,23 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     rts = calculate_rhot(mu_rhos, mu_t, beam,algorithm=algorithm,use_torch=use_torch)
 
     ####################   get signal to noise ratio if needed  #################
-    snrs=''
+    snrs = 'To get Signal-to-Noise Ratio\nOption 1: Change the "snr" argument to"snr=True" when calling "nei()";' \
+           '\nOption 2: Use the "near_edge_imaging.signal_noise_ratio" function.'
     if snr:
         print('(nei) Running "signal_noise_ratio"')
-        snrs = signal_noise_ratio(mu_rhos,mu_t,rts,beam_parameters,tomo_data,use_torch)
+        snrs = signal_noise_ratio(mu_rhos, mu_t, rts, beam_parameters, tomo_data, use_torch)
 
     ####################   Wrap up results and return  ###########################
-    beam_parameters.setup=setup
+    beam_parameters.setup = setup
+
     class Result:
-        def __init__(self, beam_parameters, mu_rhos, mu_t,rts):
+        def __init__(self, beam_parameters, mu_rhos, mu_t, rts, snrs):
             self.beam_parameters = beam_parameters
             self.mu_rhos = mu_rhos
             self.mu_t = mu_t
             self.rts = rts
+            self.snrs = snrs
+
     print('\n(nei) Total running time for "nei":'
-          '\n     ',round(time.clock()-start,2),'seconds')
-    return Result(beam_parameters, mu_rhos, mu_t,rts)
+          '\n     ', round(time.clock() - start, 2), 'seconds')
+    return Result(beam_parameters, mu_rhos, mu_t, rts, snrs)
