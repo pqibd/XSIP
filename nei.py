@@ -29,6 +29,11 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     :param slice: Which slice do we want to do the reconstruction.
     :param e_range: The energy range we want to use. Default 0, meaning the "energy_range" in "arrangement.dat" file
                     will be used as the energy range. If not 0, this will overwrite the energy range from "arrangement.dat".
+    :param lowpass: Use a lowpass filter(gaussian) on the $\mu t$ from experiment. Default is False for now(20180905)
+    :param use_torch: use Pytorch.tensor instead of numpy.array for matrix operations. Default True.
+    :param snr: Calculate the signal to noise ratio. Default False.
+    :param reconstruction: Do the CT reconstruction after having the sinograms. Default is False.
+    :param ct_center: Specify the rotation center for CT reconstruction if needed. Default is 0.
     :param fix_vertical_motion: Todo.
     :param fix_cross_over: Todo. May be not needed.
     :param flat_gamma: Todo. May be not needed.
