@@ -147,7 +147,8 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     # for chi and bragg angle corrections.
     # If it is bad, then we cannot change it in software, we have to change the hardware
     # setting on the beamline. So that these variable are only used when we are doing experiment
-    edge_slope = mphy.polyfit(x_range, edge_positions, degree=1)  # K-Edge y values
+    # edge_slope = mphy.polyfit(x_range, edge_positions, degree=1)  # K-Edge y values
+    edge_slope = np.polyfit(x_range, edge_positions, deg=1)[0]  # K-Edge y values
     peak_slope = mphy.polyfit(x_range, beam_peak, degree=1)  # Peak of beam y values
 
     # get mean values for edge and peak

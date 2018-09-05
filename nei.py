@@ -5,7 +5,7 @@ from nei_beam_parameters import nei_beam_parameters
 def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
         slice=0, multislice=False, ct=False, side_width=0,
         display=True, e_range=0,lowpass=False,use_torch=True,
-        fix_vertical_motion=False,  # maybe change default to True
+        fix_vertical_motion=False,  reconstruction=False, ct_center=0,
         clip=False, flip=False, fix_cross_over=False,width_factor=1.0,
         use_sm_data=False, use_measured_standard=False,
         use_weights=False, energy_weights=0, flat_gamma=1.0,
@@ -43,7 +43,7 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     ##############   get path for experiment data file  ################
     if path == '':
         path = choose_path()
-    print("Data directory: ",path)
+    print(" Data directory: ",path,end='\n\n')
     # start counting time
     start = time.clock()
     #############  get system setup info from arrangement.dat file ##########
@@ -87,6 +87,8 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     exy = beam_parameters.exy
     mu_rhos = nei_determine_murhos(materials, exy, gaussian_energy_width=gaussian_energy_width,
                                     use_measured_standard=use_measured_standard)
+    names = list(mu_rhos.keys())
+    mu_rhos=np.array(list(mu_rhos.values()))
 
     ####################  calculate -ln(r)=  mu/rho * rho * t   #################
     print('\n(nei) Running "calculate_mut"')
@@ -98,26 +100,39 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     ####################          calculate rho*t               #################
     beam = beam_parameters.beam
     print('\n(nei) Running "calculate_rhot"')
-    rts = calculate_rhot(mu_rhos, mu_t, beam,algorithm=algorithm,use_torch=use_torch)
+    rho_t = calculate_rhot(mu_rhos, mu_t, beam,names=names,algorithm=algorithm,use_torch=use_torch)
 
     ####################   get signal to noise ratio if needed  #################
     snrs = 'To get Signal-to-Noise Ratio\nOption 1: Change the "snr" argument to"snr=True" when calling "nei()";' \
            '\nOption 2: Use the "near_edge_imaging.signal_noise_ratio" function.'
     if snr:
-        print('(nei) Running "signal_noise_ratio"')
-        snrs = signal_noise_ratio(mu_rhos, mu_t, rts, beam_parameters, tomo_data, use_torch)
+        print('\n(nei) Running "signal_noise_ratio"')
+        snrs = signal_noise_ratio(mu_rhos, mu_t, rho_t, beam_parameters, tomo_data, use_torch)
 
+    ####################   do CT reconstruction   ###############################
+    if reconstruction:
+        print('\n(nei) Running "idl_ct"')
+        pixel = setup.detector.pixel/10 #change pixel unit to cm
+        recons = idl_ct(rho_t,pixel = pixel,center=ct_center)
+        mean_rhos = rho_in_ct(recons,names)
+    else:
+        recons = 'To get CT Reconstruction Image\nOption 1: Change the "reconstruction" argument to"reconstruction=True" when calling "nei()";' \
+           '\nOption 2: Use the "near_edge_imaging.idl_ct()" function.'
+        mean_rhos=''
     ####################   Wrap up results and return  ###########################
     beam_parameters.setup = setup
 
     class Result:
-        def __init__(self, beam_parameters, mu_rhos, mu_t, rts, snrs):
+        def __init__(self, names,beam_parameters, mu_rhos, mu_t, rho_t, snrs,recons,mean_rhos):
+            self.names = names
             self.beam_parameters = beam_parameters
             self.mu_rhos = mu_rhos
             self.mu_t = mu_t
-            self.rts = rts
+            self.rho_t = rho_t
             self.snrs = snrs
+            self.recons = recons
+            self.mean_rhos=mean_rhos
 
     print('\n(nei) Total running time for "nei":'
           '\n     ', round(time.clock() - start, 2), 'seconds')
-    return Result(beam_parameters, mu_rhos, mu_t, rts, snrs)
+    return Result(names,beam_parameters, mu_rhos, mu_t, rho_t, snrs,recons,mean_rhos)

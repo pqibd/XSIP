@@ -504,14 +504,23 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
 def idl_ct(sinogram,pixel,center=0):
     """
     CT reconstruction with the "normalized_fbp" function from IDL. Note: Licensed IDL software is required.
-    :param sinogram: 2d-array [n_projections,n_horizontal_positions]
+    :param sinogram: 3d or 2d-array [n_projections,n_horizontal_positions]
     :param pixel: pixel size in centimeter. For example: 0.0009 for 9um.
     :param center: Default 0. The sample rotation center during CT imaging.
     :return: reconstructed square 2d-array [n_horizontal_positions,n_horizontal_positions]
     """
     from idlpy import IDL
-    recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel)
-
+    dimensions = sinogram.ndim
+    if dimensions ==3:
+        recon=[]
+        for i in range(sinogram.shape[0]):
+            recon.append(IDL.normalized_fbp(sinogram[i],dx=center,pixel=pixel))
+        recon = np.array(recon)
+    elif dimensions==2:
+        recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel)
+    else:
+        raise Exception('The dimensions of input "sinogram" should be either 2 or 3.'
+                        ,dimensions,'dimensions were given.')
     return recon
 
 
@@ -574,7 +583,7 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
     return mu_t
 
 
-def calculate_rhot(mu_rhos,mu_t,beam,algorithm='',use_torch=True):
+def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
     """
     calculate the $\rho t$ for every material at every horizontal position in every projection
     :param mu_rhos: mu_rhos is obtained from "nei_determine_murhos"
@@ -595,15 +604,17 @@ def calculate_rhot(mu_rhos,mu_t,beam,algorithm='',use_torch=True):
         algorithm=input('Choose algorithm from:  "nnls", "sKES_equation"\n'
                         '(type and enter): ')
 
-    names = list(mu_rhos.keys())
-    mu_rhos = np.array(list(mu_rhos.values()))
+    # names = list(mu_rhos.keys())
+    # mu_rhos = np.array(list(mu_rhos.values()))
+
+    nm = mu_rhos.shape[0]
 
     if algorithm == 'nnls':
         print('(calculate_rhot) Algorithm: "scipy.optimize.nnls"')
         import scipy.optimize.nnls as nnls
         n_tomo = mu_t.shape[0]
         nx = mu_t.shape[2]
-        rho_t = np.zeros(shape=(n_tomo, nx, len(names)))
+        rho_t = np.zeros(shape=(nm,n_tomo, nx))
         counter = 0
         start_time = time.clock()
         print('(calculate_rhot) Started calculating RHO_T with linear regression')
@@ -617,16 +628,14 @@ def calculate_rhot(mu_rhos,mu_t,beam,algorithm='',use_torch=True):
                 beam_range = beam[:, x] > 0
                 # do linear regression. Todo: Find the best method to do non-negative linear regression
                 coef = nnls(df[beam_range][names], df[beam_range]['Mu_t'])[0]
-                rho_t[t, x] = coef
+                rho_t[:, t, x] = coef
                 # print progress
                 print('>' * (counter % int(n_tomo * nx / 48) == 0), end='')
                 counter += 1
         print('\n                 Finished calculation for'
               '\n                 ', n_tomo, ' tomo files in',
               round(time.clock() - start_time, 2), 'seconds')
-        rts = {}
-        for i in range(len(names)):
-            rts[names[i]] = rho_t[:, :, i]
+
 
     elif algorithm == 'sKES_equation':
         print('(calculate_rhot) Algorithm: "sKES_equation"')
@@ -689,12 +698,9 @@ def calculate_rhot(mu_rhos,mu_t,beam,algorithm='',use_torch=True):
             for i in range(n_materials):
                 rho_t[i] = (inverted_mean_square_murhos[i] * (sum_vector.transpose(1, 0, 2))).sum(axis=1)
 
-        rts = {}
-        for i in range(len(names)):
-            rts[names[i]] = rho_t[i]
     else: raise Exception('"Algorithm" is not properly defined. Please choose from ["nnls", "sKES_equation"]')
     print('(calculate_rhot) Finished "calculate_rhot"')
-    return rts
+    return rho_t
 
 
 def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=True):
@@ -713,9 +719,9 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
     """
     if use_torch:
         print('(signal_noise_ratio) Preparing things for calculation')
-        mu_rhos = torch.from_numpy(np.array(list(mu_rhos.values()))).float()
+        mu_rhos = torch.from_numpy(mu_rhos).float()
         mu_t = torch.from_numpy(mu_t).float()
-        rho_t = torch.from_numpy(np.array(list(rho_t.values()))).float()
+        rho_t = torch.from_numpy(rho_t).float()
         beam = torch.from_numpy(beam_parameters.beam).float()
         flat = torch.from_numpy(beam_parameters.beam_files.flat).float()
         dark = torch.from_numpy(beam_parameters.beam_files.dark).float()
@@ -757,8 +763,8 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
         snrs = snrs.numpy()
 
     else: # use numpy
-        mu_rhos = np.array(list(mu_rhos.values())).astype(float) #[n_materials,n_energies,nx]
-        rho_t = np.array(list(rho_t.values())).astype(float) #[n_materials,n_projections,nx]
+        # mu_rhos = np.array(list(mu_rhos.values())).astype(float) #[n_materials,n_energies,nx]
+        # rho_t = np.array(list(rho_t.values())).astype(float) #[n_materials,n_projections,nx]
         beam = beam_parameters.beam.astype(float)  #[n_energies,nx]
         flat = beam_parameters.beam_files.flat.astype(float)
         dark = beam_parameters.beam_files.dark.astype(float)
@@ -800,6 +806,91 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
             print()
 
     return snrs # [n_materials,n_proj,nx]
+
+
+def rho_in_ct(recon,names,center=[],width=0.0):
+
+    # If more than 1 recon, use RECURSION to reconstruct them all.
+    # The last two dimensions should be the the recon image array
+    if recon.ndim >= 3:
+        if recon.ndim==3 and len(names)>1:
+            mean_rho=[]
+            for i in range(recon.shape[0]):
+                mean_rho.append(rho_in_ct(recon[i],names[i],center=center,width=width))
+        else:
+            mean_rho = []
+            for i in range(recon.shape[0]):
+                mean_rho.append(rho_in_ct(recon[i], names, center=center, width=width))
+        return np.array(mean_rho)
+
+    center = np.array(center).round().astype(int)
+    if len(center)==0: # No center position is provided
+        # find the bright area
+        ct_filtered = median_filter(recon, 20)  # A big filter here, just to locate the center of target
+        target = np.where(ct_filtered > ct_filtered.max() * 0.7) # Threshold is 0.7 to locate target
+        xmin = target[1].min()
+        xmax = target[1].max()
+        ymin = target[0].min()
+        ymax = target[0].max()
+        x0 = round((xmin + xmax) / 2)
+        y0 = round((ymin + ymax) / 2)
+        center = np.array([x0, y0]).reshape((1,2))
+        width = min([ymax - ymin, xmax - xmin]) / 2 # Use the 0.5 of maxs to be the width for square
+    elif center.ndim==1:  # One center position is provided
+        # y0=center[1]; x0=center[0]
+        center = center.reshape((1,2))
+    width = round(width)
+    # else: # Multiple center positions are provided
+    plt.figure()
+    plt.imshow(recon, cmap='gray_r')
+    plt.title('CT reconstruction for the concentration of '+str(names)+'( $mg/cm^3$)')
+    plt.colorbar()
+    mean_rho=[]
+    for i in range(center.shape[0]):
+        y0 = center[i][1]; x0 = center[i][0]
+        width = round(width)
+        x1 = int(x0 - 0.5 * width);
+        x2 = int(x0 + 0.5 * width);
+        y1 = int(y0 - 0.5 * width);
+        y2 = int(y0 + 0.5 * width)
+        mean_rho.append((recon[y1:y2, x1:x2].mean()*1000).round(2)) # change the unit to mg/cm^3
+        draw_square([y0,x0], width, color='b')
+    mean_molar_mass = np.array(mean_rho)/mphy.molar_mass(names)
+    print('(rho_in_ct) Average density of '+str(names)+' in the square(s) is:\n'
+          '          ', mean_rho,'mg/cm^3, Or',mean_molar_mass,'mM.')
+    return mean_rho
+
+
+def calculate_distance(path, x_location, proj, smooth_width=20):
+    """
+    Distance between beam focus and detector. This function is not required for spectral KES calculation.
+    This function is only useful with Selenate absorption spectrum, in which there are two significant
+    peaks after selenium k-edge energy.
+    :return:
+    """
+    import math
+
+    tomo = get_tomo_files(path)
+    arrangement = nei_get_arrangement(path)
+    beam_files = get_beam_files(path)
+    flat = beam_files.flat
+    dark = beam_files.dark
+    mut = -np.log((tomo[proj]-dark)/(flat-dark))
+
+    d_theta = math.radians(0.01999) # angle distance between the 2 peaks of selenate spectrum
+    a0 = 5.4305  # Angstroms ##silicon crystal unit cell length at 300K.
+    hkl = arrangement.hkl
+    d_hkl = a0 / math.sqrt((np.array(hkl) ** 2).sum())
+    pixel_size = arrangement.detector.pixel #mm
+
+    mut = np.median(mut[:,x_location-round(smooth_width/2):x_location+round(smooth_width/2)],axis=1)
+
+
+
+
+
+
+
 
 
 

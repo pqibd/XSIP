@@ -6,7 +6,7 @@ import tkinter.filedialog as filedialog
 def choose_path():
     root = tkinter.Tk()
     root.withdraw()
-    path = filedialog.askdirectory(title='Please select NEI directory:')
+    path = filedialog.askdirectory(title='Please select data directory:')
     # if path == '': choose_path()
     return path
 
@@ -43,11 +43,11 @@ def reload_object(fname):
 
 def draw_square(center_yx, width, color='k'):
     """
-    Use the center location and width in index to draw a square shape on existing plot
+    Use the center location and width in pixel to draw a square on EXISTING plot
     :param center_yx: [y0,x0].
     :param width: width of the square, unit 1.
     :param color: choose the color for square edge.
-    :return: Nothing is returned. But use plt.show() after this function if nothing was shown.
+    :return: Returns nothing. But use plt.show() after this function if nothing was shown.
     """
     import matplotlib.pyplot as plt
     x0 = center_yx[1]

@@ -276,6 +276,57 @@ def element_info(element_name,no_whine=False):
     return(info)
 
 
+def molar_mass(name,Verbose=False):
+    """
+
+    :param name: Element name or compound name. Example: "Na2SeO4"
+    :return: Molar mass of input element or compound
+    """
+    atom_weights = dict(zip(Constants.elements, Constants.atom_weights))
+    try:
+        total_mass = 0
+        # atom_weights = dict(zip(Constants.elements,Constants.atom_weights))
+        all = re.findall(r'[A-Z][a-z]*|\d+|\(|\)',name)
+        if Verbose:
+            print(all)
+        if len(all)==0:
+            raise Exception('Name is not in standard form.')
+        for i in range(len(all)):
+            if not all[i].isdigit():
+                total_mass+= atom_weights[all[i].upper()]
+            else:
+                number= float(all[i])-1
+                total_mass+=(atom_weights[all[i-1].upper()]*number)
+    except:
+        total_mass = 0
+        with open(r'C:\Users\qcyus\Dropbox (X-ray Imaging Group)'
+                  r'\IDL procedures\Dean Procedures\local\MU\COMPOSIT.DAT', 'r') as file:
+            content = file.read().upper()
+        # Use pattern1 to find the composite we want, and get the number of types of element it has
+        pattern1 = ' ' + name.upper() + '.+\n'
+        thereitis = re.search(pattern1, content)
+        if thereitis:
+            n_elements = thereitis.group().split()[-1]
+        else:
+            raise Exception(name.upper() + ' is not a legitimate composite name in "COMPOSIT.DAT"!')
+        # Use pattern2 to pack up all the information for the composite we want
+        pattern2 = ' ' + name.upper() + '.+(?:\n.+){' + n_elements + '}'
+        # And put things into a list like this
+        # [['SEO3', '1.00000', '3'],
+        # ['NA', '2.0000000'],
+        # ['SE', '1.0000000'],
+        # ['O', '3.0000000']]
+        composite_info = [i.split() for i in re.search(pattern2, content).group().split('\n')]
+        if Verbose:
+            print('Composite_info:\n',composite_info)
+        for element in composite_info[1:]:  # composite_info[0] will not be used
+            element_name = element[0]
+            atom_count = float(element[1])
+            atom_weight = atom_weights[element_name]
+            total_mass+=(atom_count * atom_weight)
+    return total_mass
+
+
 def read_absorber(element_name,Verbose=False):
     element_name = element_name.upper()
     if Verbose:
@@ -474,7 +525,7 @@ def composite_murho(name,energies):
     if thereitis:
         n_elements = thereitis.group().split()[-1]
     else:
-        raise Exception(name.upper()+' is not a legitimate composite name!')
+        raise Exception(name.upper()+' is not a legitimate composite name in "COMPOSIT.DAT"!')
     # Use pattern2 to pack up all the information for the composite we want
     pattern2 = ' '+name.upper()+'.+(?:\n.+){'+n_elements+'}'
     # And put things into a list like this
@@ -487,7 +538,7 @@ def composite_murho(name,energies):
     # calculate mu/rho for every element
     composite_mu=[]
     mol_weight = []
-    for element in composite_info[1:]:
+    for element in composite_info[1:]:  #composite_info[0] will not be used
         element_name = element[0]
         molecular_weight = float(element[1])
         atom_weight = element_info(element_name).atom_weight
