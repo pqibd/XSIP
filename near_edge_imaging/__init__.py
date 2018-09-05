@@ -362,6 +362,7 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
 
     return murhos_all
 
+
 def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     '''
     Locate the peak positions in the beam. Decide the useful region in the beam we are going to keep.
@@ -586,9 +587,9 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
 def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
     """
     calculate the $\rho t$ for every material at every horizontal position in every projection
-    :param mu_rhos: mu_rhos is obtained from "nei_determine_murhos"
-    :param mu_t: mu_t is obtained from "calculate_mut"
-    :param beam: beam is obtained from "beam_parameters.beam"
+    :param mu_rhos: mu_rhos is obtained from "nei_determine_murhos". {material: [n_energies,,nx]...}
+    :param mu_t: mu_t is obtained from "calculate_mut" .[n_projections,n_energies,nx]
+    :param beam: beam is obtained from "beam_parameters.beam". [n_energies,nx]
     :param algorithm: The core algorithm to calculate $\rho t$.
            Availabe options are ["nnls", "sKES_equation"] for now (Aug 27, 2018).
            If "nnls": `scipy.optimize.nnls as nnls` will be used to perform linear regression
@@ -597,17 +598,16 @@ def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
                                Because matrix operation is used here for calculation, it is much
                                faster than doing all the iterations with "nnls".
                                [Ref: Ying Zhu,2012 Dissertation]
-    :return: A dictionay {Names: Sinograms of $\rho t$ with shape [ny,nx]}
+    :return: 3d-array with shape [n_materials, n_projection,nx]}. For CT data, the last two dimensions
+             form the sinogram.
     """
 
     if algorithm=='':
         algorithm=input('Choose algorithm from:  "nnls", "sKES_equation"\n'
                         '(type and enter): ')
 
-    # names = list(mu_rhos.keys())
-    # mu_rhos = np.array(list(mu_rhos.values()))
 
-    nm = mu_rhos.shape[0]
+    nm = mu_rhos.shape[0] # number of materials
 
     if algorithm == 'nnls':
         print('(calculate_rhot) Algorithm: "scipy.optimize.nnls"')
@@ -865,7 +865,7 @@ def calculate_distance(path, x_location, proj, smooth_width=20):
     """
     Distance between beam focus and detector. This function is not required for spectral KES calculation.
     This function is only useful with Selenate absorption spectrum, in which there are two significant
-    peaks after selenium k-edge energy.
+    peaks near selenium k-edge energy.
     :return:
     """
     import math

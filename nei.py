@@ -13,23 +13,36 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
         Verbose=False):
     """
     Get beam_parameters.
-    Get $\mu/\rho$ {n_materials:2d-array([n_energies,n_horizontal_positions]),...}
+    Get $\mu/\rho$ [n_materials, n_energies,n_horizontal_positions]
     Get $\mu t$ [n_projections,n_energies,n_horizontal_positions]
-    Get $\rho t$ {material: 2d-array([n_projection,n_horizontal_positions]),...}
-    :param materials:
-    :param path:
-    :param ct:
-    :param side_width:
-    :param n_proj:
-    :param slice:
-    :param multislice:
-    :param e_range:
-    :param fix_vertical_motion:
-    :param fix_cross_over:
-    :param flat_gamma:
-    :param Verbose:
-    :return: $\rho t$ {material: 2d-array([n_projection,n_horizontal_positions]),...}.
-             Values in the dictionary are sinograms in 2d-arrays.
+    Get $\rho t$ [n_material, n_projection,n_horizontal_positions]
+    Get CT reconstruction [n_material,n_horizontal,n_horizontal]
+    Get Signal to Noise Ratio
+    :param materials: {names:sources}. Sources mean the way in which we will get the $\mu/\rho$ for that material
+    :param path: The main directory containing Flat, Dark, Edge, Tomo, etc...
+    :param ct: If True, a piece of left and right side of projection image will be used to correct the air absorption
+               from sample to detector.
+    :param side_width: Used with param "ct". Define the width in pixel for air absorption correction
+    :param n_proj: The number of projection images for one slice of CT imaging.
+    :param multislice: If True, meaning the images in the "tomo" folder are for more than one slice of CT. The n_proj
+                       and slice needs to be specified.
+    :param slice: Which slice do we want to do the reconstruction.
+    :param e_range: The energy range we want to use. Default 0, meaning the "energy_range" in "arrangement.dat" file
+                    will be used as the energy range. If not 0, this will overwrite the energy range from "arrangement.dat".
+    :param fix_vertical_motion: Todo.
+    :param fix_cross_over: Todo. May be not needed.
+    :param flat_gamma: Todo. May be not needed.
+    :param Verbose: If True, some detail will show up when run the program. And some matplotlib plot window might pause
+                    the program.
+    :return: names
+             beam_parameters.
+             mu_rhos: $\mu/\rho$ [n_materials, n_energies,n_horizontal_positions]
+             mu_t:    $\mu t$ [n_projections,n_energies,n_horizontal_positions]
+             rho_t:   $\rho t$ [n_material, n_projection,n_horizontal_positions]
+             recons:  CT reconstruction [n_material,n_horizontal,n_horizontal]
+             snrs:    Signal to Noise Ratio
+             mean_rhos: The mean values of $\rho$ in the target area in recon image.
+
     """
 
     ###############   define materials       ######################
@@ -72,13 +85,13 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     '''
     The following is the main calculation for Energy Dispersive Xray Absorption Spectroscopy.
     
-    - We get get mu_rho values for every material at every y,x position on the detector (in the image).
+    - We get mu_rho values for every material at every y(energy),x position on the detector (in the image).
     - We calculate the $\mu t$ for every y position (representing energy) at every x position
-        (representing horizontal position in the sample) in every tomo image.
-    - We calculate the $\rho t$ at every horizontal position for every material.
+        (representing horizontal position in the sample) in every projection image.
+    - We calculate the $\rho t$ at every x(horizontal) position for every material.
     In theory, if there is only one material, we can solve the $\rho t$ with the information at one energy
     position, by $(\mu t)/(\mu/\rho)$. When we have 3 materials, we can solve it with 3 energy points.
-    In reality, we have sometimes about 900 energy points, so we use linear regression (or other algorithm)
+    In reality, we have sometimes around 900 energy points, so we use linear regression (or other algorithm)
     to solve the coefficient of every material.
     '''
     ##########  get murho values for every material at [y,x] position  ############
@@ -87,6 +100,7 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     exy = beam_parameters.exy
     mu_rhos = nei_determine_murhos(materials, exy, gaussian_energy_width=gaussian_energy_width,
                                     use_measured_standard=use_measured_standard)
+    # dict to np.array. Save the names list as array axis
     names = list(mu_rhos.keys())
     mu_rhos=np.array(list(mu_rhos.values()))
 
