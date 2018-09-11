@@ -280,10 +280,11 @@ def molar_mass(name,Verbose=False):
     """
 
     :param name: Element name or compound name. Example: "Na2SeO4"
-    :return: Molar mass of input element or compound
+    :return: Molar mass of input element or compound. Unit: g/mol.
     """
     atom_weights = dict(zip(Constants.elements, Constants.atom_weights))
-    try:
+    try: # Find all the elements and the according atom counts by the input name of compound.
+         # If fails, go to the "except".
         total_mass = 0
         # atom_weights = dict(zip(Constants.elements,Constants.atom_weights))
         all = re.findall(r'[A-Z][a-z]*|\d+|\(|\)',name)
@@ -297,10 +298,10 @@ def molar_mass(name,Verbose=False):
             else:
                 number= float(all[i])-1
                 total_mass+=(atom_weights[all[i-1].upper()]*number)
-    except:
+    except: # Find the name of the compound in "composit.dat", and use the molecular information
+            # provided there to calculate molar mass.
         total_mass = 0
-        with open(r'C:\Users\qcyus\Dropbox (X-ray Imaging Group)'
-                  r'\IDL procedures\Dean Procedures\local\MU\COMPOSIT.DAT', 'r') as file:
+        with open(r'MU\COMPOSIT.DAT', 'r') as file:
             content = file.read().upper()
         # Use pattern1 to find the composite we want, and get the number of types of element it has
         pattern1 = ' ' + name.upper() + '.+\n'
@@ -324,7 +325,7 @@ def molar_mass(name,Verbose=False):
             atom_count = float(element[1])
             atom_weight = atom_weights[element_name]
             total_mass+=(atom_count * atom_weight)
-    return total_mass
+    return total_mass #g/mol
 
 
 def read_absorber(element_name,Verbose=False):
@@ -333,8 +334,7 @@ def read_absorber(element_name,Verbose=False):
         print('(read_absorber) Looking for "'+element_name+'" in absorber.dat')
     # open 'absorber.dat' file, get to the interested element by regex,
     # get the ek, eta, ef..
-    with open(r'C:\Users\qcyus\Dropbox (X-ray Imaging Group)'
-              r'\IDL procedures\Dean Procedures\local\MU\ABSORBER.DAT','r') as file:
+    with open(r'MU\ABSORBER.DAT', 'r') as file:
         content = file.read()
     # create a pattern to find the element and the information we want
     pattern = '(?:\A|\n)(' + element_name + ' (?:.*\n\W)+.*)\n\w{1,2} ' # all the info for one element
@@ -377,7 +377,7 @@ def read_absorber(element_name,Verbose=False):
     for i in range(1,(2+n_edges//6)):
         edges=edges+ms[i]
     edges = np.array(edges).astype(float)
-    class GotAbsorber:
+    class Results:
         def __init__(self,ms,de,c_a,c_b,e0,xj):
             self.n_edges = int(ms[0][1])
             self.edges   = edges
@@ -392,7 +392,7 @@ def read_absorber(element_name,Verbose=False):
             self.e0  = e0
             self.xj  = xj
 
-    return(GotAbsorber(ms,de,c_a,c_b,e0,xj))
+    return Results(ms,de,c_a,c_b,e0,xj)
 
 
 def mu_calculator(element_name,energies):
@@ -487,9 +487,7 @@ def element_murho(name,energies):
 
     energies = np.array(energies).astype(float)
     info = element_info(name)
-    # if len(info)==0:
-    #     # then this is probably a composite
-    #     info = composite(name)
+
     density = info.density
     atom_weight=info.atom_weight
     full_name = info.full_name
@@ -508,7 +506,7 @@ def element_murho(name,energies):
     return(mu_total)
 
 
-def composite_murho(name,energies):
+def composite_murho(name,energies,use_file=True):
     # 	;input:		name:  		    composite symbol
     # 	;			energies:	    photon energy [KeV]
     # 	;return:	mu_total:	    mass absorption coefficient - total [cm^2/g]
@@ -516,14 +514,21 @@ def composite_murho(name,energies):
     # 	;			density:	    density [g/cm^3]
     # 	;			atom_weight:	standard atomic weight [g/mol]
 
-    with open(r'C:\Users\qcyus\Dropbox (X-ray Imaging Group)'
-              r'\IDL procedures\Dean Procedures\local\MU\COMPOSIT.DAT','r') as file:
+    with open(r'MU\COMPOSIT.DAT', 'r') as file:
         content = file.read().upper()
     # Use pattern1 to find the composite we want, and get the number of types of element it has
     pattern1 = ' '+name.upper()+'.+\n'
     thereitis = re.search(pattern1,content)
     if thereitis:
-        n_elements = thereitis.group().split()[-1]
+        composite_outline = thereitis.group().split()
+        # eg. ['K2SEO4', '1.00000', '3', 'SEO4-PH7-1.CRS']
+        n_elements = composite_outline[2]
+        if len(composite_outline)==4:
+            # eg. ['K2SEO4', '1.00000', '3', 'SEO4-PH7-1.CRS']
+            file_present=True
+            file_name = composite_outline[3]
+        else: # eg. ['WATER', '1.00000', '2']
+            file_present=False
     else:
         raise Exception(name.upper()+' is not a legitimate composite name in "COMPOSIT.DAT"!')
     # Use pattern2 to pack up all the information for the composite we want
@@ -549,15 +554,18 @@ def composite_murho(name,energies):
     mol_weight   = np.array(mol_weight).sum(axis=0)
     composite_mu = composite_mu/mol_weight
 
+    if use_file and file_present:
+        composite_mu = murho_from_file(name,file_name,energies)
+
     return(composite_mu)
 
 
-def murho(name,energies,Verbose=False):
+def murho(name,energies,use_file=True,Verbose=False):
     elements = Constants.elements
     if name.upper() in elements:
         mu_total = element_murho(name,energies)
     else:
-        mu_total = composite_murho(name,energies)
+        mu_total = composite_murho(name,energies,use_file=use_file)
     if Verbose:
         print(r'murho of "'+name+'" is :', mu_total,r'cm^2/g')
     return(mu_total)
@@ -601,7 +609,7 @@ def murho_selenium_compounds(name, energies, interpol_kind='linear'):
     murho_e2 = murho(name, e2)
     # line up the first and last value of murho and a, then we use the a values to fake the murho values
     a = murho_e2[0] + (murho_e2[-1] - murho_e2[0]) * (a - a[0]) / (a.iloc[-1] - a[0])  # type(a): pandas...series
-    a = a - 0.5 * (e2 - e2.min())  # what is this used for???
+    a = a - 0.5 * (e2 - e2.min())  # what is this used for?
     dataframe_a = pd.DataFrame.from_dict({'energy': e2, 'murho': a}, )
 
     murho_e1 = murho(name, e1)
@@ -627,3 +635,52 @@ def murho_selenium_compounds(name, energies, interpol_kind='linear'):
         murho_interpol = murho_interpol.item()
     return murho_interpol
 
+
+def murho_from_file(name,file_name, energies, interpol_kind='linear'):
+    '''
+    read in xas data for selenium compounds, generate murho values from the values in files,
+    interpol to make value for interested energies
+    :param file_name:
+    :param energies:
+    :param interpol_kind:
+    :return:
+    '''
+    from scipy.interpolate import interp1d
+    path = r'MU\LIB'+'\\'
+    file = path+file_name
+    data = pd.read_csv(file, delimiter=r"\s+", skiprows=1,
+                       names=['energies', 'cross_over', 'normalized'])
+    e1 = energies
+    e2 = data.energies / 1000
+    a = data.cross_over / e2  # absorbance? absorption? attenuation?
+    normalized_atten = data.normalized
+    n_energies = len(e2)
+
+    murho_e2 = murho(name, e2, use_file=False)
+    # line up the first and last value of murho and a, then we use the a values to fake the murho values
+    a = murho_e2[0] + (murho_e2[-1] - murho_e2[0]) * (a - a[0]) / (a.iloc[-1] - a[0])  # type(a): pandas...series
+    a = a - 0.5 * (e2 - e2.min())  # what is this used for?
+    dataframe_a = pd.DataFrame.from_dict({'energy': e2, 'murho': a}, )
+
+    murho_e1 = murho(name, e1, use_file=False)
+    try:
+        dataframe_murho_e1 = pd.DataFrame.from_dict({'energy': e1, 'murho': murho_e1})
+    except:
+        dataframe_murho_e1 = pd.DataFrame.from_dict({'energy': [e1], 'murho': [murho_e1]})
+
+    df1 = dataframe_murho_e1[dataframe_murho_e1.energy < e2[0]]  # where energy < e2[first]
+    df3 = dataframe_murho_e1[dataframe_murho_e1.energy > e2.iloc[-1]]  # where energy > e2[last]
+    df2 = dataframe_a
+    murho_all = pd.concat([df1, df2, df3], ignore_index=True)
+    # in IDL, an interpol(mall,eall,es) was used. 'LSQUADRATIC or QUADRATIC or SPLINE is not set,
+    # the default is to use linear interpolation'
+    # In python, 2 options here.
+    ## numpy.interp(x, xp, fp, left=None, right=None, period=None): only do linear interpolation
+    ## scipy.interpolate.interp1d(x, y, kind='linear', axis=-1, copy=True, bounds_error=None, fill_value=nan, assume_sorted=False)
+    #### this one we can choose to use 'linear' or 'spline' or 'cubic' or something else.
+    interpol = interp1d(murho_all.energy.values, murho_all.murho.values, kind=interpol_kind)
+    murho_interpol = interpol(e1)
+
+    if type(e1) is int or type(e1) is float:
+        murho_interpol = murho_interpol.item()
+    return murho_interpol

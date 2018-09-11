@@ -25,22 +25,22 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     diffraction_plane = setup.diffaction_plane
     e_range = setup.energy_range
 
-    flip = detector.flip
+    # flip = detector.flip
     pixel = detector.pixel
-    det_type = detector.type
-    phperapu = detector.phperapu
-    dispxd = detector.disp_x_demag
+    # det_type = detector.type
+    # phperapu = detector.phperapu
+    # dispxd = detector.disp_x_demag
     pct_max = detector.pct_max
 
     ############### physics in the crystal #################
     chi = math.radians(chi_degrees)
-    a0 = 5.4305  # Angstroms ##silicon crystal unit cell length at 300K.
-    # This is usually used as the internal standard for silicon
+    a0 = 5.4305  # Unit: Angstroms ##silicon crystal unit cell length at 300K.
+                 # This is usually used as the internal standard for silicon
     e_edge = energy
     d_hkl = a0 / math.sqrt((np.array(hkl) ** 2).sum())
     # C.c: speed of light, C.h: planck constant, C.eV: eV to Joer
     lamb = (C.c * C.h / C.eV) / (e_edge * 1000) * (10 ** 10)  # WaveLength, Unit: Angstroms
-    theta_b = math.asin(lamb / (2 * d_hkl))  # lambda = 2dsin(theta)
+    theta_b = math.asin(lamb / (2 * d_hkl))  # lambda = 2d*sin(theta)
     print('(nei_beam_parameters) Bragg angle in degree:\n'
           '                     ', round(theta_b * 180 / math.pi, 3))
 
@@ -57,7 +57,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     x_range = np.arange(nx)
     y_range = np.arange(ny)
 
-    median_width = 5
+    # median_width = 5
 
     edge_dark = edge - dark  # dark corrected edge
     flat_dark = flat - dark  # dark corrected flat
@@ -157,7 +157,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     #########   align pixel with energy values      ####################
     '''
         edge_positions-y_index: get the relative position to edge. Use matrix to do it
-        exy is the energy(eV) at every [y,x] location
+        exy is the energy(keV) at every [y,x] location
         10**10 is used to line up the unit to "Angstrom"
     '''
     y_relative = edge_positions - y_range.reshape((ny, 1))
@@ -237,7 +237,14 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
 
 
 def get_beam_parameters(path='', e_range=0, Verbose=False):
-    ##############    get  Path for experiment data file  #######################
+    """
+    This function is used if the beam parameters is all you want.
+    :param path:
+    :param e_range:
+    :param Verbose:
+    :return: beam_parameters
+    """
+    ##############    get Path for experiment data file  ################
     if path == '':
         path = choose_path()
     print("Data directory: ", path)

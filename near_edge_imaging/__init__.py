@@ -277,7 +277,7 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False, A
 
 
 def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='linear',
-                         use_sm_data=False, use_measured_standard=False):
+                         use_file=True,use_sm_data=False, use_measured_standard=False):
     '''
     For every compound, every horizontal position, get the murho value for that
     compound at every energy point (y position on the detector). Ways to get murho values
@@ -310,23 +310,27 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
     energies = np.linspace(emin - 2 * (e_range), emax + 2 * (e_range), 5 * ny)
 
     murhos = {}
-    for name, source in materials.items():
-        print('(nei_determine_murhos) Geting murho data for ' + name)
-        if source.lower() == 'file':
-            # get murho from saved file
-            mu_rho = mphy.murho_selenium_compounds(name, energies)
-        elif source.lower() == 'system':
-            # get murho by calculating it for every element
-            mu_rho = mphy.murho(name, energies)
-        elif source.lower() == 'standard':
-            # Todo:
-            # get murho from experiment standard. Stardard data are collected with current experiment setting,
-            # and standard selenium compound solution ,etc.
-            pass
-        else:
-            raise Exception('Material murho data source code is invalid.\n '
-                            'Please choose from ["SYSTEM", "FILE", "STANDARD"],\n'
-                            'and redefine the "source" variable\n')
+    # for name, source in materials.items():
+    #     print('(nei_determine_murhos) Getting murho data for ' + name)
+        # if source.lower() == 'file':
+        #     # get murho from saved file
+        #     mu_rho = mphy.murho_selenium_compounds(name, energies)
+        # elif source.lower() == 'system':
+        #     # get murho by calculating it for every element
+        #     mu_rho = mphy.murho(name, energies)
+        # elif source.lower() == 'standard':
+        #     # Todo:
+        #     # get murho from experiment standard. Stardard data are collected with current experiment setting,
+        #     # and standard selenium compound solution ,etc.
+        #     pass
+        # else:
+        #     raise Exception('Material murho data source code is invalid.\n '
+        #                     'Please choose from ["SYSTEM", "FILE", "STANDARD"],\n'
+        #                     'and redefine the "source" variable\n')
+    # for name, source in materials.items():
+    for name in materials:
+        print('(nei_determine_murhos) Getting murho data for ' + name)
+        mu_rho = mphy.murho(name, energies, use_file=use_file)
         murhos[name] = mu_rho
 
     ####################  Blur the edge if needed  ##################
@@ -425,11 +429,11 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
             self.peak=peak
             self.beam=beam
 
-    if no_fit: # return with no polynomial fit
+    if no_fit:  # return with no polynomial fit
         for i in range(nx):
             beam[bot_positions[i]:top_positions[i], i] = 1.0
         s = BeamEdges(top_positions, bot_positions, peak_positions, beam)
-        return(s)
+        return s
 
     ###############  Doing polynomial fit   ##############################
     #Approach 1 : polynomial fit
@@ -502,7 +506,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     return s
 
 
-def idl_ct(sinogram,pixel,center=0):
+def idl_recon(sinogram,pixel,center=0):
     """
     CT reconstruction with the "normalized_fbp" function from IDL. Note: Licensed IDL software is required.
     :param sinogram: 3d or 2d-array [n_projections,n_horizontal_positions]
@@ -523,6 +527,61 @@ def idl_ct(sinogram,pixel,center=0):
         raise Exception('The dimensions of input "sinogram" should be either 2 or 3.'
                         ,dimensions,'dimensions were given.')
     return recon
+
+
+def skimage_recon(sinogram,n_proj,pixel_size=1.0,output_size=None,filter='ramp',center=0,circle=None):
+    """
+    CT reconstruction using Inverse Radon Transform, with Filtered Back Projection algorithm.
+    See "radon_transform" in skimage.transform for more detail.
+
+
+    :param sinogram:array_like, dtype=float
+                    Image containing radon transform (sinogram).
+                    If n_dimension==2, each row of the image corresponds to
+                    a projection along a different angle. The tomography
+                    rotation axis should lie at the pixel index.
+                    If n_dimension>=3, the last two dimensions should be the
+                    sinogram.
+    :param n_proj: Number of projections taken for one slice of CT imaging
+    :param pixel_size: Pixel size of the detector. Unit: cm.
+    :param output_size: The width of the output reconstruction image.
+                        If Output_size not specified, use the image horizontal width.
+    :param filter: str, optional (default ramp)
+                    Filter used in frequency domain filtering. Ramp filter used by default.
+                    Filters available: ramp, shepp-logan, cosine, hamming, hann.
+                    Assign None to use no filter.
+    :param center: The rotation center of CT imaging.(default 0)
+    :param circle: boolean, optional
+                    Assume the reconstructed image is zero outside the inscribed circle.
+                    The default behavior (None) is equivalent to False.
+    :return: Reconstruction image arrays, with the same number of dimensions of the input
+             sinogram array.
+    """
+    from skimage.transform import iradon
+    # if sinogram.ndim>=3, which means there is more than one sinogram. Iterate them all.
+    # The last two dimension should be the sinogram array.
+    if sinogram.ndim>=3:
+        recon = []
+        for i in range(sinogram.shape[0]):
+            recon.append(skimage_recon(sinogram[i],n_proj=n_proj,pixel_size=pixel_size,
+                                       output_size=output_size,filter=filter,center=center,
+                                       circle=circle))
+        recon = np.array(recon)
+        return recon
+    # when sinogram.ndim==2, do the reconstruction.
+    print('(skimage_recon) Started one CT reconstruction...',end='')
+    if not output_size: # If Output_size not specified, use the image horizontal width
+        output_size=sinogram.shape[1]
+    sinogram = sinogram.transpose(1,0) # transpose row and column to meet the order in skimage.transform.
+    theta = np.linspace(0,180,n_proj) # make the angles of projections from 0 to 180 degree
+    recon = iradon(sinogram,theta=theta,output_size=output_size,filter=filter,
+                   center_drift=center,circle=circle)
+    # correct result with pixel size (cm).
+    recon = recon/pixel_size
+    print('...Finished')
+
+    return recon
+
 
 
 def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0):
@@ -591,13 +650,13 @@ def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
     :param mu_t: mu_t is obtained from "calculate_mut" .[n_projections,n_energies,nx]
     :param beam: beam is obtained from "beam_parameters.beam". [n_energies,nx]
     :param algorithm: The core algorithm to calculate $\rho t$.
-           Availabe options are ["nnls", "sKES_equation"] for now (Aug 27, 2018).
-           If "nnls": `scipy.optimize.nnls as nnls` will be used to perform linear regression
-                      for the spectrum at every horizontal position in every projection image.
-           If "sKES_equation": A pre-derived equation derived with least-square approach is used.
-                               Because matrix operation is used here for calculation, it is much
-                               faster than doing all the iterations with "nnls".
-                               [Ref: Ying Zhu,2012 Dissertation]
+                      Availabe options are ["nnls", "sKES_equation"] for now (Aug 27, 2018).
+                      If "nnls": `scipy.optimize.nnls` will be used to perform linear regression
+                                  for the spectrum at every horizontal position in every projection image.
+                      If "sKES_equation": A equation derived with least-square approach is used.
+                                           Because matrix operation is used here for calculation, it is much
+                                           faster than doing all the iterations with "nnls".
+                                           [Ref: Ying Zhu,2012 Dissertation]
     :return: 3d-array with shape [n_materials, n_projection,nx]}. For CT data, the last two dimensions
              form the sinogram.
     """
@@ -808,12 +867,26 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
     return snrs # [n_materials,n_proj,nx]
 
 
-def rho_in_ct(recon,names,center=[],width=0.0):
+def rho_in_ct(recon,names=None,center=[],width=0.0):
+    """
+    Calculate the average $\rho$ value in the target area in input recon image. If *center* and *width*
+    are provided, target area is the wanted area. If not provided, this function will find the brightest
+    area and calculate the average $\rho$ in it (actually only a square in the bright area)
+    :param recon:Numpy array. Number of dimension >=2. If ndim==2,
+    :param names: As reference for multi recon images, for the convenience of making plot labels.
+    :param center: The center [x,y] pixel location of the square area to be calculated.
+                   It can be either one center location [x,y], or a sequence of [x,y]s.
+    :param width: The width of the square area to be calculated.
+    :return:
+    """
 
-    # If more than 1 recon, use RECURSION to reconstruct them all.
-    # The last two dimensions should be the the recon image array
+    # If more than 1 recon, use RECURSION to go through all of them.
+    # The last two dimensions should be the recon image array
     if recon.ndim >= 3:
-        if recon.ndim==3 and len(names)>1:
+        if recon.ndim==3 and names and len(names)>1:
+            # when there are more than one material, and there are no more than 3 dimensions,
+            # the 1st dimension represents the materials. Use the names as the reference for
+            # making plots.
             mean_rho=[]
             for i in range(recon.shape[0]):
                 mean_rho.append(rho_in_ct(recon[i],names[i],center=center,width=width))
@@ -840,11 +913,9 @@ def rho_in_ct(recon,names,center=[],width=0.0):
         # y0=center[1]; x0=center[0]
         center = center.reshape((1,2))
     width = round(width)
-    # else: # Multiple center positions are provided
     plt.figure()
-    plt.imshow(recon, cmap='gray_r')
-    plt.title('CT reconstruction for the concentration of '+str(names)+'( $mg/cm^3$)')
-    plt.colorbar()
+    plt.imshow(recon*1000, cmap='gray_r')
+    plt.colorbar().set_label('$mg/cm^3$',rotation=0,position=(1,1),labelpad=-5)
     mean_rho=[]
     for i in range(center.shape[0]):
         y0 = center[i][1]; x0 = center[i][0]
@@ -855,10 +926,16 @@ def rho_in_ct(recon,names,center=[],width=0.0):
         y2 = int(y0 + 0.5 * width)
         mean_rho.append((recon[y1:y2, x1:x2].mean()*1000).round(2)) # change the unit to mg/cm^3
         draw_square([y0,x0], width, color='b')
-    mean_molar_mass = np.array(mean_rho)/mphy.molar_mass(names)
-    print('(rho_in_ct) Average density of '+str(names)+' in the square(s) is:\n'
-          '          ', mean_rho,'mg/cm^3, Or',mean_molar_mass,'mM.')
-    return mean_rho
+    if names: # if we know the name of the material for the CT recon
+        mean_molar_concentration = 1000 * np.array(mean_rho)/mphy.molar_mass(names) #mM
+        plt.title('Concentration of ' + str(names))
+        print('(rho_in_ct) Average density of '+str(names)+' in the square(s) is:\n'
+          '          ', mean_rho,'mg/cm^3, Or',mean_molar_concentration.round(2),'mM.')
+    else:
+        print('(rho_in_ct) Average density in the square(s) is:\n'
+          '          ', mean_rho,'mg/cm^3')
+
+    return np.array(mean_rho)
 
 
 def calculate_distance(path, x_location, proj, smooth_width=20):
