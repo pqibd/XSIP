@@ -5,7 +5,7 @@ from nei_beam_parameters import nei_beam_parameters
 def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
         slice=0, multislice=False, ct=False, side_width=0,
         e_range=0,lowpass=False,use_torch=True,use_file=True,
-        fix_vertical_motion=False,  reconstruction=False, ct_center=0,
+        fix_vertical_motion=False,  reconstruction=None, ct_center=0,
         clip=False, flip=False, fix_cross_over=False,width_factor=1.0,
          use_sm_data=False, use_measured_standard=False,
         use_weights=False, energy_weights=0, flat_gamma=1.0,
@@ -37,7 +37,8 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     :param lowpass: Use a lowpass filter(gaussian) on the $\mu t$ from experiment. Default is False for now(20180905)
     :param use_torch: use Pytorch.tensor instead of numpy.array for matrix operations. Default True.
     :param snr: Calculate the signal to noise ratio. Default False.
-    :param reconstruction: Do the CT reconstruction after having the sinograms. Default is False.
+    :param reconstruction: str (default None). Routine used for CT reconstruction after having the sinograms.
+                           Routines available: 'idl','skimage'.
     :param ct_center: Specify the rotation center for CT reconstruction if needed. Default is 0.
     :param fix_vertical_motion: Todo.
     :param fix_cross_over: Todo. May be not needed.
@@ -139,7 +140,9 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     if reconstruction:
         print('\n(nei) Running "idl_ct"')
         pixel = setup.detector.pixel/10 #change pixel unit to cm
-        recons = idl_recon(rho_t,pixel = pixel,center=ct_center)
+        # Available reconstruction routines. Use the one specified by "reconstruction"
+        recon_funcs={'idl':idl_recon,'skimage':skimage_recon}
+        recons = recon_funcs[reconstruction](rho_t,pixel_size=pixel,center=ct_center)
         mean_rhos = rho_in_ct(recons,names)
     else:
         recons = 'To get CT Reconstruction Image\nOption 1: Change the "reconstruction" argument to"reconstruction=True" when calling "nei()";' \

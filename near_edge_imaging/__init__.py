@@ -506,7 +506,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     return s
 
 
-def idl_recon(sinogram,pixel,center=0):
+def idl_recon(sinogram,pixel_size,center=0):
     """
     CT reconstruction with the "normalized_fbp" function from IDL. Note: Licensed IDL software is required.
     :param sinogram: 3d or 2d-array [n_projections,n_horizontal_positions]
@@ -519,21 +519,20 @@ def idl_recon(sinogram,pixel,center=0):
     if dimensions ==3:
         recon=[]
         for i in range(sinogram.shape[0]):
-            recon.append(IDL.normalized_fbp(sinogram[i],dx=center,pixel=pixel))
+            recon.append(IDL.normalized_fbp(sinogram[i],dx=center,pixel=pixel_size))
         recon = np.array(recon)
     elif dimensions==2:
-        recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel)
+        recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel_size)
     else:
         raise Exception('The dimensions of input "sinogram" should be either 2 or 3.'
                         ,dimensions,'dimensions were given.')
     return recon
 
 
-def skimage_recon(sinogram,n_proj,pixel_size=1.0,output_size=None,filter='ramp',center=0,circle=None):
+def skimage_recon(sinogram,pixel_size=1.0,output_size=None,filter='ramp',center=0,circle=True):
     """
     CT reconstruction using Inverse Radon Transform, with Filtered Back Projection algorithm.
     See "radon_transform" in skimage.transform for more detail.
-
 
     :param sinogram:array_like, dtype=float
                     Image containing radon transform (sinogram).
@@ -542,8 +541,8 @@ def skimage_recon(sinogram,n_proj,pixel_size=1.0,output_size=None,filter='ramp',
                     rotation axis should lie at the pixel index.
                     If n_dimension>=3, the last two dimensions should be the
                     sinogram.
-    :param n_proj: Number of projections taken for one slice of CT imaging
-    :param pixel_size: Pixel size of the detector. Unit: cm.
+    :param n_proj: Integer. Number of projections taken for one slice of CT imaging
+    :param pixel_size: Float. Pixel size of the detector. Unit: cm.
     :param output_size: The width of the output reconstruction image.
                         If Output_size not specified, use the image horizontal width.
     :param filter: str, optional (default ramp)
@@ -563,13 +562,14 @@ def skimage_recon(sinogram,n_proj,pixel_size=1.0,output_size=None,filter='ramp',
     if sinogram.ndim>=3:
         recon = []
         for i in range(sinogram.shape[0]):
-            recon.append(skimage_recon(sinogram[i],n_proj=n_proj,pixel_size=pixel_size,
+            recon.append(skimage_recon(sinogram[i],pixel_size=pixel_size,
                                        output_size=output_size,filter=filter,center=center,
                                        circle=circle))
         recon = np.array(recon)
         return recon
     # when sinogram.ndim==2, do the reconstruction.
     print('(skimage_recon) Started one CT reconstruction...',end='')
+    n_proj = sinogram.shape[0]
     if not output_size: # If Output_size not specified, use the image horizontal width
         output_size=sinogram.shape[1]
     sinogram = sinogram.transpose(1,0) # transpose row and column to meet the order in skimage.transform.
@@ -581,7 +581,6 @@ def skimage_recon(sinogram,n_proj,pixel_size=1.0,output_size=None,filter='ramp',
     print('...Finished')
 
     return recon
-
 
 
 def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0):
@@ -877,7 +876,7 @@ def rho_in_ct(recon,names=None,center=[],width=0.0):
     :param center: The center [x,y] pixel location of the square area to be calculated.
                    It can be either one center location [x,y], or a sequence of [x,y]s.
     :param width: The width of the square area to be calculated.
-    :return:
+    :return: array_like, dtype=float. $\rho$ values in auto located bright areas or designated areas.
     """
 
     # If more than 1 recon, use RECURSION to go through all of them.
@@ -940,6 +939,8 @@ def rho_in_ct(recon,names=None,center=[],width=0.0):
 
 def calculate_distance(path, x_location, proj, smooth_width=20):
     """
+    UNDER CONSTRUCTION
+
     Distance between beam focus and detector. This function is not required for spectral KES calculation.
     This function is only useful with Selenate absorption spectrum, in which there are two significant
     peaks near selenium k-edge energy.
