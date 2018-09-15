@@ -219,14 +219,19 @@ class NearEdgeImaging:
         frame3_6.grid(sticky=W)
         Label(frame3_6,text = 'Save Directory',width=15).grid()
         self.recon_path = StringVar()
-        entryReconPath = Entry(frame3_6,textvariable = self.recon_path).grid(row=0,column=1)
-        btReconPath = Button(frame3_6,text='Browse',command = self.browseReconPath).grid(row=0,column=2)
+        frame3_6_1 = Frame(frame3)
+        frame3_6_1.grid(sticky=EW)
+        for x in range(10):# configure the columns to have a non-zero weight
+            Grid.columnconfigure(frame3_6_1, x, weight=1)
+        entryReconPath = Entry(frame3_6_1,textvariable = self.recon_path)\
+            .grid(columnspan=10,sticky=EW,padx=6)
+        btReconPath = Button(frame3_6,text='Browse',command = self.browseReconPath).grid(row=0,column=1)
         self.auto_save=BooleanVar()
         self.color_auto_save=StringVar()
         self.color_auto_save.set('slate gray')
         self.cbtAutoSave = Checkbutton(frame3_6,text = 'Auto Save',variable=self.auto_save,
                                   bg = self.color_auto_save.get(),command=self.AutoSave)
-        self.cbtAutoSave.grid(row=0,column=3)
+        self.cbtAutoSave.grid(row=0,column=2)
         self.auto_save.set(False)
 
 
