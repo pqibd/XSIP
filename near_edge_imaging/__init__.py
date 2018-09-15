@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 import time
 import torch
 from scipy.ndimage import median_filter
@@ -127,7 +128,7 @@ def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
     # read all the image files into a 3D array[n_images,rows,columns],
     # take the average along the images, so that we get an average image.
     # Returned value is 2d array
-    from PIL import Image
+
 
     # twelve_bit=
     n_files = len(files)
@@ -866,7 +867,7 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
     return snrs # [n_materials,n_proj,nx]
 
 
-def rho_in_ct(recon,names=None,center=[],width=0.0):
+def rho_in_ct(recon,names=None,center=[],width=0.0,save_path=''):
     """
     Calculate the average $\rho$ value in the target area in input recon image. If *center* and *width*
     are provided, target area is the wanted area. If not provided, this function will find the brightest
@@ -888,11 +889,11 @@ def rho_in_ct(recon,names=None,center=[],width=0.0):
             # making plots.
             mean_rho=[]
             for i in range(recon.shape[0]):
-                mean_rho.append(rho_in_ct(recon[i],names[i],center=center,width=width))
+                mean_rho.append(rho_in_ct(recon[i],names[i],center=center,width=width,save_path=save_path))
         else:
             mean_rho = []
             for i in range(recon.shape[0]):
-                mean_rho.append(rho_in_ct(recon[i], names, center=center, width=width))
+                mean_rho.append(rho_in_ct(recon[i], names, center=center, width=width,save_path=save_path))
         return np.array(mean_rho)
 
     center = np.array(center).round().astype(int)
@@ -912,7 +913,7 @@ def rho_in_ct(recon,names=None,center=[],width=0.0):
         # y0=center[1]; x0=center[0]
         center = center.reshape((1,2))
     width = round(width)
-    plt.figure()
+    plt.figure(figsize=(9,9))
     plt.imshow(recon*1000, cmap='gray_r')
     plt.colorbar().set_label('$mg/cm^3$',rotation=0,position=(1,1),labelpad=-5)
     mean_rho=[]
@@ -925,14 +926,21 @@ def rho_in_ct(recon,names=None,center=[],width=0.0):
         y2 = int(y0 + 0.5 * width)
         mean_rho.append((recon[y1:y2, x1:x2].mean()*1000).round(2)) # change the unit to mg/cm^3
         draw_square([y0,x0], width, color='b')
+
+    figures = fnmatch.filter(os.listdir(save_path),'*.png')
+    n_fig = len(figures)
     if names: # if we know the name of the material for the CT recon
         mean_molar_concentration = 1000 * np.array(mean_rho)/mphy.molar_mass(names) #mM
         plt.title('Concentration of ' + str(names))
+        plt.savefig(save_path + str(names) + '.png')
+
         print('(rho_in_ct) Average density of '+str(names)+' in the square(s) is:\n'
           '          ', mean_rho,'mg/cm^3, Or',mean_molar_concentration.round(2),'mM.')
     else:
+        plt.savefig(save_path  + str(n_fig) + '.png')
         print('(rho_in_ct) Average density in the square(s) is:\n'
           '          ', mean_rho,'mg/cm^3')
+    # check existing figures in the folder
 
     return np.array(mean_rho)
 

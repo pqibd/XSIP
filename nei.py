@@ -1,9 +1,10 @@
 from near_edge_imaging import *
-from nei_beam_parameters import nei_beam_parameters
+from nei_beam_parameters import *
+import inspect
+from datetime import datetime
 
-
-def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
-        slice=0, multislice=False, ct=False, side_width=0,
+def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multislice=False,
+        slice=0, n_proj=900, ct=False, side_width=0,
         e_range=0,lowpass=False,use_torch=True,use_file=True,
         fix_vertical_motion=False,  reconstruction=None, ct_center=0,
         clip=False, flip=False, fix_cross_over=False,width_factor=1.0,
@@ -63,28 +64,47 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
     #     materials = {}
     #     for i in range(len(names)):
     #         materials[names[i]] = sources[i]
+
     if materials == '':
         materials = ['K2SeO4', 'K2SeO3', 'Se-Meth', 'Water']
 
-    ##############   get path for experiment data file  ################
-    if path == '':
-        path = choose_path()
-    print(" Data directory: ",path,end='\n\n')
+    ##############   get path for experiment data file and path to save result  ######
+    if data_path == '':
+        data_path = choose_path()
+    print("\n Data directory: ",data_path,end='\n')
+
+    if save_path == '':
+        save_path = data_path+'\\'+'Save'
+    date = str(datetime.today().date())
+    timelabel = str(datetime.now().time())[:8].replace(':', '-')
+    save_path = save_path + '\\' + date + '\\'+timelabel+'\\'
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    print('\n Save directory: ',save_path,end='\n\n')
     # start counting time
     start = time.clock()
+
+    ##############    print argument settings   ########################
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    print(' Argument settings:')
+    for i in args:
+        print ("    %s = %s" % (i, values[i]))
+
     #############  get system setup info from arrangement.dat file ##########
-    setup = nei_get_arrangement(path)
+    setup = nei_get_arrangement(data_path)
     detector = setup.detector
     # overwrite energy_range from arrangement file if needed
     if e_range != 0: setup.energy_range = e_range
 
     ########  get beam files: averaged flat, dark, and edge  ############
     print('\n(nei) Running "get_beam_files"')
-    beam_files = get_beam_files(path=path, clip=clip, flip=flip, Verbose=Verbose)
+    beam_files = get_beam_files(path=data_path, clip=clip, flip=flip, Verbose=Verbose)
 
     #####################  get tomo data  ########################
     print('\n(nei) Running "get_tomo_files"')
-    tomo_data = get_tomo_files(path,multislice=multislice,slice=slice,n_proj=n_proj)
+    tomo_data = get_tomo_files(data_path,multislice=multislice,slice=slice,n_proj=n_proj)
 
     #################### Get beam_parameters #####################
     print('\n(nei) Running "nei_beam_parameters"')
@@ -138,12 +158,13 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
 
     ####################   do CT reconstruction if needed  ######################
     if reconstruction:
-        print('\n(nei) Running "idl_ct"')
+        print('\n(nei) Running CT reconstruction with '+reconstruction)
         pixel = setup.detector.pixel/10 #change pixel unit to cm
         # Available reconstruction routines. Use the one specified by "reconstruction"
         recon_funcs={'idl':idl_recon,'skimage':skimage_recon}
         recons = recon_funcs[reconstruction](rho_t,pixel_size=pixel,center=ct_center)
-        mean_rhos = rho_in_ct(recons,names)
+        mean_rhos = rho_in_ct(recons,names,save_path=save_path)
+        # plt.show()
     else:
         recons = 'To get CT Reconstruction Image\nOption 1: Change the "reconstruction" argument to"reconstruction=True" when calling "nei()";' \
            '\nOption 2: Use the "near_edge_imaging.idl_ct()" function.'
@@ -164,4 +185,8 @@ def nei(materials='', path='', n_proj=900, algorithm='sKES_equation',
 
     print('\n(nei) Total running time for "nei":'
           '\n     ', round(time.clock() - start, 2), 'seconds')
-    return Result(names,beam_parameters, mu_rhos, mu_t, rho_t, snrs,recons,mean_rhos)
+    result = Result(names,beam_parameters, mu_rhos, mu_t, rho_t, snrs,recons,mean_rhos)
+    print('\n(nei) Saving results')
+    save_result(save_path,result,args,values)
+    print('      Results are saved at',save_path)
+    return result

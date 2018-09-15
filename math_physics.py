@@ -294,7 +294,10 @@ def molar_mass(name,Verbose=False):
             raise Exception('Name is not in standard form.')
         for i in range(len(all)):
             if not all[i].isdigit():
-                total_mass+= atom_weights[all[i].upper()]
+                try:
+                    total_mass+= atom_weights[all[i].upper()]
+                except:
+                    raise Exception('No such element:'+str(all[i]))
             else:
                 number= float(all[i])-1
                 total_mass+=(atom_weights[all[i-1].upper()]*number)
@@ -307,7 +310,7 @@ def molar_mass(name,Verbose=False):
         pattern1 = ' ' + name.upper() + '.+\n'
         thereitis = re.search(pattern1, content)
         if thereitis:
-            n_elements = thereitis.group().split()[-1]
+            n_elements = thereitis.group().split()[2]
         else:
             raise Exception(name.upper() + ' is not a legitimate composite name in "COMPOSIT.DAT"!')
         # Use pattern2 to pack up all the information for the composite we want
@@ -639,7 +642,8 @@ def murho_selenium_compounds(name, energies, interpol_kind='linear'):
 def murho_from_file(name,file_name, energies, interpol_kind='linear'):
     '''
     read in xas data for selenium compounds, generate murho values from the values in files,
-    interpol to make value for interested energies
+    interpol to make value for interested energies.
+    Equivalent to "murho_file_compound"
     :param file_name:
     :param energies:
     :param interpol_kind:

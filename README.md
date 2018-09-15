@@ -65,7 +65,9 @@ Returns:
 - **lowpass**: Use a lowpass filter(gaussian) on the $\mu t$ from experiment. Default is False for now(20180905)
 - **use_torch**: use Pytorch.tensor instead of numpy.array for matrix operations. Default True.
 - **snr**: Calculate the signal to noise ratio. Default False.
-- **reconstruction**: Do the CT reconstruction after having the sinograms. Default is False.
+- **reconstruction**: str (default=None). Routine used for CT reconstruction after having the sinograms. Routines available: 
+    - 'idl'
+    - 'skimage': skimage.transform.iradon. An edited version.
 - **ct_center**: Specify the rotation center for CT reconstruction if needed. Default is 0.
 - **fix_vertical_motion**: Todo.
 - **fix_cross_over**: Todo. May be not needed.
@@ -75,7 +77,8 @@ Returns:
 ## Get beam properties
 - `nei_beam_parameters.get_beam_parameters`. It returns the same "beam_parameters" as the one returned by `nei()`.
 
-## 
+## Spectral K-Edge Subtraction Imaging
+
 
 
     
