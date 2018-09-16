@@ -11,15 +11,17 @@ class NearEdgeImaging:
         window.minsize(width=800, height=500)
         window.title("Near Edge Imaging")
         master = Frame(window)
-        master.grid(ipadx = 5)
-
+        master.grid()
+        # label 1
         Label(master,text="STEP 1: SETUP PARAMETERS\n"
                    "(Use default if you are not sure what they are)").grid(pady=15)
 
+        # Exit button
         btExit = Button(master, text="EXIT",fg="red",command=quit,height=2,width=4,
                         relief=GROOVE,cursor='sailboat')
         btExit.grid(row=0,column=1,sticky=E)
 
+        #################   Frame 1   ##########################################
         frame1 = Frame(master, bd=4, relief=RIDGE)
         frame1.grid()
         # use file
@@ -253,12 +255,13 @@ class NearEdgeImaging:
         Button.config(btSave, font=('Helvetica', '11'))
 
         #####################    Text  Frame   ###############################
-        # frameT = Frame(master)
-        # frameT.grid(sticky=W)
-        # Label(frame3_2,text = 'Loaded').grid()
-        self.text = Text(master,height=9,width=47)
-        self.text.grid(row=2,rowspan=2,column=1,sticky=S)
-        self.text.grid_propagate(False)
+        frameT = Frame(master,height=9,width=47)
+        frameT.grid(row=2,rowspan=2,column=1,sticky=S)
+        sbText = Scrollbar(frameT)
+        self.text = Text(frameT,height=9,width=47,yscrollcommand=sbText.set)
+        sbText.config(command=self.text.yview)
+        self.text.grid(row=0,column=0,sticky=S)
+        sbText.grid(row=0,column=1,sticky=NS)
 
         ####################  change theme config   ##########################
         # iterate through all the widgets
@@ -275,6 +278,7 @@ class NearEdgeImaging:
                     if not sub_sub_widget.winfo_class() in ['Entry','Text']:
                         sub_sub_widget.configure(bg=color,takefocus=True)
         btRun['bg']='purple4'
+
         master.mainloop()
 
     ###################  Command Functions   #################################
