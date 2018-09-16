@@ -3,12 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 import time
-import torch
 from scipy.ndimage import median_filter
 from scipy.ndimage import gaussian_filter
 from scipy.interpolate import interp1d
 import math_physics as mphy
 from toolkit import *
+
 
 # __all__ = ['NeiSubDir','file_search',
 #            'nei_get_arrangement','read_average_tifs','get_tomo_files','nei_determine_murhos',
@@ -660,11 +660,15 @@ def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
     :return: 3d-array with shape [n_materials, n_projection,nx]}. For CT data, the last two dimensions
              form the sinogram.
     """
+    try:
+        import torch
+    except:
+        print('(signal_noise_ratio) Module pytorch is not available. Numpy will be used instead.')
+        use_torch=False
 
     if algorithm=='':
         algorithm=input('Choose algorithm from:  "nnls", "sKES_equation"\n'
                         '(type and enter): ')
-
 
     nm = mu_rhos.shape[0] # number of materials
 
@@ -776,6 +780,12 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
                       tensor for the computation here.
     :return: snrs. Numpy array, in shape of [n_materials,n_projections,n_horizontal_positions]
     """
+    try:
+        import torch
+    except:
+        print('(signal_noise_ratio) Module pytorch is not available. Numpy will be used instead.')
+        use_torch=False
+
     if use_torch:
         print('(signal_noise_ratio) Preparing things for calculation')
         mu_rhos = torch.from_numpy(mu_rhos).float()
