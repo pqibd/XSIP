@@ -102,7 +102,7 @@ def fwhm(x,y,Verbose=False):
         plt.plot([right_fwhm,right_fwhm],[0,y.max()],color='y')
         plt.title('FWHM')
         plt.show()
-    return (fwhm,left_fwhm,right_fwhm)
+    return fwhm,left_fwhm,right_fwhm
 
 
 def gaussfit(x, y, *estimate):
