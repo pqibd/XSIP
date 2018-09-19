@@ -84,7 +84,7 @@ Returns:
 Built with `tkinter` and `tkinter.ttk`.
 Including two `ttk.Notebook` tabs. 
 - Tab1 is made for 'spectral KES' or 'Energy Dispersive XAS'. First, setup the parameters. Second, choose directorys (1)containing the data and (2) to save the results. Results is generated from `nei()`. Saved as `.pkl` file and images.
-- - Tab2 is made for doing CT reconstruction. The source data to do recon should be sinogram(s) like array or image. It can be multi sinograms in multi-dimension `numpy.ndarray`.
+- Tab2 is made for doing CT reconstruction. The source data to do recon should be sinogram(s) like array or image. It can be multi sinograms in multi-dimension `numpy.ndarray`.
 
 
 
