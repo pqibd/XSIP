@@ -372,13 +372,15 @@ class NearEdgeImaging:
     def browseData(self):
         self.curr_path = choose_path()
         self.path.set(self.curr_path)
-        self.save_path.set(self.curr_path + r'\Save')
+        self.save_path.set(Path(self.curr_path)/'Save')
         print(self.path.get())
         self.text.insert(END, self.curr_path + '\n')
 
     def browseSave(self):
-        self.curr_path = choose_path()
-        self.save_path.set(self.curr_path)
+        # self.curr_path = choose_path()
+        # self.save_path.set(self.curr_path)
+        path = choose_path()
+        self.save_path.set(path)
         print(self.save_path.get())
 
     def run(self):
@@ -415,10 +417,6 @@ class NearEdgeImaging:
         # multithreading. Prevent the program from frozen
         threading.Thread(target=thread_run).start()
 
-    def AutoSave(self):
-        Checkbutton.config(self.cbtAutoSave, bg='MediumPurple1' if self.auto_save.get() else 'gray70')
-        if self.auto_save.get() and not self.recon_path.get():
-            self.recon_path.set(choose_path())
 
     def browseSino(self):
         """
@@ -516,6 +514,7 @@ class NearEdgeImaging:
                                                                 pixel_size=(self.pixel.get() / 10000),
                                                                 center=self.rotCenter.get())
             else:
+                # Run the recon. Note: convert the unit of pixel size to Centimeter
                 self.recons = recon_funcs[self.reconFunc.get()](self.target_sino,
                                                                 pixel_size=(self.pixel.get() / 10000),
                                                                 center=self.rotCenter.get())
@@ -548,18 +547,27 @@ class NearEdgeImaging:
 
                     print('end')
             if self.display.get():
-                displayRecon(self.recons,0)
+                displayRecon(self.recons,0)# 0 is sent in as a counter start
             self.text.insert(END, '\nReconstruction finished\n')
         self.text.insert(END,'\nReconstruction started\n')
         threading.Thread(target=thread_runRecon).start()
 
     def browseReconPath(self):
+        # choose path to save the reconstructed images from the tabRecon
         self.recon_path.set(choose_path())
+
+    def AutoSave(self):
+        # Change back ground color for the checkbutton
+        Checkbutton.config(self.cbtAutoSave, bg='MediumPurple1' if self.auto_save.get() else 'gray70')
+        # if (auto_save checked) & (path to save not defined), define the path
+        if self.auto_save.get() and not self.recon_path.get():
+            self.recon_path.set(choose_path())
 
     def saveRecon(self):
         # save when there is path and recon
         if not self.recon_path.get():  # if 'path' is empty, choose path.
             self.recon_path.set(choose_path())
+        # check the path again, in case nothing was choosen from the last command.
         if self.recon_path.get() and self.recons:  # if 'recons' is not empty, then we can save recons
             save_recon(self.recon_path.get(), self.recons)
 

@@ -16,85 +16,90 @@ from toolkit import *
 
 class NeiSubDir:
     def __init__(self, path, After=False, EdgeB=False):
-        self.DarkBefore = path + r'/DarkBefore'
-        self.FlatBefore = path + r'/FlatBefore'
-        self.EdgeABefore = path + r'/EdgeABefore'
-        self.Tomo = path + r'/Tomo'
+        self.DarkBefore = path /'DarkBefore'
+        self.FlatBefore = path /'FlatBefore'
+        self.EdgeABefore = path /'EdgeABefore'
+        self.Tomo = path /'Tomo'
         if After == True:
-            self.DarkAfter = path + r'/DarkAfter'
-            self.FlatAfter = path + r'/FlatAfter'
-            self.EdgeAAfter = path + r'/EdgeAAfter'
+            self.DarkAfter = path /'DarkAfter'
+            self.FlatAfter = path /'FlatAfter'
+            self.EdgeAAfter = path /'EdgeAAfter'
         else:  # use 'Before' for all 'After'
-            self.DarkAfter = path + r'/DarkBefore'
-            self.FlatAfter = path + r'/FlatBefore'
-            self.EdgeAAfter = path + r'/EdgeABefore'
+            self.DarkAfter = path /'DarkBefore'
+            self.FlatAfter = path /'FlatBefore'
+            self.EdgeAAfter = path /'EdgeABefore'
         if EdgeB == True:
-            self.EdgeBBefore = path + r'/EdgeBBefore'
+            self.EdgeBBefore = path /'EdgeBBefore'
             if After == True:
-                self.EdgeBAfter = path + r'/EdgeBAfter'
+                self.EdgeBAfter = path /'EdgeBAfter'
             else:
-                self.EdgeBAfter = path + r'/EdgeBBefore'
+                self.EdgeBAfter = path /'EdgeBBefore'
         else:  # use EdgeA for all EdgeB
-            self.EdgeBBefore = path + r'/EdgeABefore'
+            self.EdgeBBefore = path /'EdgeABefore'
             if After == True:
-                self.EdgeBAfter = path + r'/EdgeAAfter'
+                self.EdgeBAfter = path /'EdgeAAfter'
             else:
-                self.EdgeBAfter = path + r'/EdgeABefore'
-
-
-def file_search(path, file_filter='*'):
-    """
-    :param path: search files in this path
-    :param file_filter: change the pattern of filter to match the wanted files
-    :return:
-    """
-    import os
-    import fnmatch
-    files = fnmatch.filter(os.listdir(path), file_filter)
-    if len(files) == 0:
-        print('------------------------'
-              '\nWarning: No files found\n'
-              '------------------------')
-        return files
-    files = [path + r'/' + file for file in files]
-    return files
+                self.EdgeBAfter = path /'EdgeABefore'
+    # def __init__(self, path, After=False, EdgeB=False):
+    #     self.DarkBefore = path + r'/DarkBefore'
+    #     self.FlatBefore = path + r'/FlatBefore'
+    #     self.EdgeABefore = path + r'/EdgeABefore'
+    #     self.Tomo = path + r'/Tomo'
+    #     if After == True:
+    #         self.DarkAfter = path + r'/DarkAfter'
+    #         self.FlatAfter = path + r'/FlatAfter'
+    #         self.EdgeAAfter = path + r'/EdgeAAfter'
+    #     else:  # use 'Before' for all 'After'
+    #         self.DarkAfter = path + r'/DarkBefore'
+    #         self.FlatAfter = path + r'/FlatBefore'
+    #         self.EdgeAAfter = path + r'/EdgeABefore'
+    #     if EdgeB == True:
+    #         self.EdgeBBefore = path + r'/EdgeBBefore'
+    #         if After == True:
+    #             self.EdgeBAfter = path + r'/EdgeBAfter'
+    #         else:
+    #             self.EdgeBAfter = path + r'/EdgeBBefore'
+    #     else:  # use EdgeA for all EdgeB
+    #         self.EdgeBBefore = path + r'/EdgeABefore'
+    #         if After == True:
+    #             self.EdgeBAfter = path + r'/EdgeAAfter'
+    #         else:
+    #             self.EdgeBAfter = path + r'/EdgeABefore'
 
 
 def nei_get_arrangement(path,setup_type='FILE'):
     class get_arrangement:
         def __init__(self, path):
-            filename = path + r'\arrangement.dat'
-            try:
-                data = pd.read_csv(filename, index_col=0,
-                                   header=None, sep=r',\s+', engine='python').T
-                for i in range(data.shape[1]):  # remove the ' sign in some strings
-                    data.iloc[0, i] = data.iloc[0, i].replace("'", "")
+            filename = path/'arrangement.dat'
+            data = pd.read_csv(filename, index_col=0, header=None, sep=r',\s+', engine='python')
+            data=data[1] # series
+            for i in range(len(data)):  # remove the ' sign in some strings
+                data[i] = data[i].replace("'", "")
+            data = data.to_dict()
 
-                k = int(data.loc[1, 'k'])
-                l = int(data.loc[1, 'l'])
-                h = int(data.loc[1, 'h'])
-                energy_range_low = float(data.loc[1, 'energy_range_low'])
-                energy_range_high = float(data.loc[1, 'energy_range_high'])
+            k = int(data['k'])
+            l = int(data['l'])
+            h = int(data['h'])
+            energy_range_low = float(data['energy_range_low'])
+            energy_range_high = float(data['energy_range_high'])
 
-                self.diffaction_plane = data.loc[1, 'diffraction_plane']
-                self.type = data.loc[1, 'type']
-                self.chi_degrees = float(data.loc[1, 'chi_degrees'])
-                self.hkl = [h, k, l]
-                self.energy = float(data.loc[1, 'energy'])
-                self.energy_range = [energy_range_low, energy_range_high]
-                self.dist_fd = float(data.loc[1, 'dist_fd'])
-                self.detector = self.detector(data)
-            except:
-                raise Exception('Error: Something is wrong when reading in the arrangement file')
+            self.diffaction_plane = data['diffraction_plane']
+            self.type = data['type']
+            self.chi_degrees = float(data['chi_degrees'])
+            self.hkl = [h, k, l]
+            self.energy = float(data['energy'])
+            self.energy_range = [energy_range_low, energy_range_high]
+            self.dist_fd = float(data['dist_fd'])
+            self.detector = self.detector(data)
 
         class detector:
             def __init__(self, data):
-                self.type = data.loc[1, 'det_type']
-                self.pixel = float(data.loc[1, 'det_pixel'])
-                self.flip = float(data.loc[1, 'det_flip'])
-                self.phperapu = float(data.loc[1, 'det_phperapu'])
-                self.disp_x_demag = float(data.loc[1, 'det_disp_x_demag'])
-                self.pct_max = float(data.loc[1, 'det_pct_max'])
+                self.type = data['det_type']
+                self.pixel = float(data['det_pixel'])
+                self.flip = float(data['det_flip'])
+                self.phperapu = float(data['det_phperapu'])
+                self.disp_x_demag = float(data['det_disp_x_demag'])
+                self.pct_max = float(data['det_pct_max'])
 
     arrangement = get_arrangement(path)
     arrangement_parameters = {'diffaction_plane': ' DIFFRACTION PLANE:',
@@ -129,7 +134,6 @@ def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
     # take the average along the images, so that we get an average image.
     # Returned value is 2d array
 
-
     # twelve_bit=
     n_files = len(files)
     image_array = []
@@ -139,7 +143,7 @@ def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
     average = image_array.mean(axis=0)
     return(average)
 
-def get_beam_files(path,Verbose=False,clip=False, flip=False):
+def get_beam_files(path,After=False,Verbose=False,clip=False, flip=False):
     '''
     return averaged flat, dark, edge images in form of 2d-arrays.
     :param path:
@@ -150,7 +154,7 @@ def get_beam_files(path,Verbose=False,clip=False, flip=False):
     :param flip:
     :return: beam_files: averaged flat, dark, edge images in form of 2d-arrays.
     '''
-
+    path = Path(path)
     sub_dir = NeiSubDir(path, After=False, EdgeB=False)
 
     flat_path = sub_dir.FlatBefore
@@ -224,7 +228,7 @@ def get_beam_files(path,Verbose=False,clip=False, flip=False):
             self.dark = dark
             self.edge = edge
             self.horizontal_low = horizontal_low
-            self.horizontal_high=horizontal_high
+            self.horizontal_high= horizontal_high
             self.origin_beam_files= origin_beam_files
     return BeamFiles(flat,dark,edge,horizontal_low,horizontal_high,origin_beam_files)
 
@@ -241,19 +245,12 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False, A
     :param EdgeB:
     :return: 3d-array [n_tomo(n_proj), n_energies, n_horizontal_positions]
     """
-
-    sub_dir = NeiSubDir(path, After=After, EdgeB=EdgeB)
+    path = Path(path)
+    sub_dir = NeiSubDir(path, After=After, EdgeB=EdgeB)# todo
     tomo_files = file_search(sub_dir.Tomo, '*tif')
 
     # get the tomo images for ONE slice when there are multislices of projections in tomo image folder.
     if multislice == True:
-        # print('-----------------------------------------------------'
-        #       '\nReminder: "Slice" starts from 1. There is NO 0th slice'
-        #       '-----------------------------------------------------')
-        # if slice < 1:
-        #     print('-----------------------------------------------------'
-        #           '\nWarning: "Slice" starts from 1. "slice=' + str(slice) + ' is entered\n'
-        #           '-----------------------------------------------------')
         i_begin = n_proj * slice
         i_end = i_begin + n_proj
         tomo_files = tomo_files[i_begin:i_end]
@@ -262,7 +259,6 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False, A
     print('(get_tomo_files) Number of Tomo files: ', n_tomo)  # equal to n_projections
 
     # tomo files to data array
-    from PIL import Image
     counter=0
     tomo_data = []
     if n_tomo >= 200:
@@ -311,6 +307,8 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
     energies = np.linspace(emin - 2 * (e_range), emax + 2 * (e_range), 5 * ny)
 
     murhos = {}
+    # the following comment-out code is used in the past when we define materials together
+    # with the source of murhos
     # for name, source in materials.items():
     #     print('(nei_determine_murhos) Getting murho data for ' + name)
         # if source.lower() == 'file':
@@ -370,7 +368,7 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
 
 def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     '''
-    Locate the peak positions in the beam. Decide the useful region in the beam we are going to keep.
+    Locate the peak positions in the flat beam. Decide the useful region in the beam we are going to keep.
     :param flat_dark: flat-dark, 2D array
     :param threshold: percentage of the max value. Beam values higher than threshold will be kept.
     :param no_fit: No polynomial fit for the peak positions in the beam.
@@ -480,7 +478,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     ###################################################################
     #Approach 2:
     ################################################################
-    # Linear regression only gives a straight line
+    # Linear regression of course only gives a straight line
     # machine learning linear regression
     # from sklearn.linear_model import LinearRegression
     # linear_regression = LinearRegression().fit(pd.DataFrame(np.arange(nx)),peak_positions)
@@ -617,8 +615,10 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
             if side_width<=0: # making sure side_width is valid.
                 raise Exception('When "CT" is True, "side_width" is used to remove air absorption, and '
                                 '"side_width" has to be an integer >0')
-            mut_left_total = (mu_t[i]*beam)[:,0:side_width].sum()
-            mut_right_total= (mu_t[i]*beam)[:,-side_width:].sum()
+            # mut_left_total = (mu_t[i]*beam)[:,0:side_width].sum()
+            # mut_right_total= (mu_t[i]*beam)[:,-side_width:].sum()
+            mut_left_total = mu_t[i][:, 0:side_width].sum()
+            mut_right_total = mu_t[i][:, -side_width:].sum()
             mut_left_count = beam[:,0:side_width].sum()
             mut_right_count= beam[:,-side_width:].sum()
             mut_left_avg   = mut_left_total/mut_left_count
@@ -627,6 +627,7 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
             filter_1d = mut_left_avg+(mut_right_avg-mut_left_avg)*((x_position-side_width/2)/(nx-side_width))
             filter_2d = filter_1d*(beam*0.0+1.0)
             # remove air absorption from total mu_t
+            # Todo: possible correction  mu_t[i] = mu_t[i]-filter_2d
             mu_t[i] = mu_t[i]-filter_2d
         if n_tomo>=200:
             print('>' * (counter % int(n_tomo / 50) == 0), end='')
@@ -662,8 +663,8 @@ def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
     """
     try:
         import torch
-    except:
-        print('(signal_noise_ratio) Module pytorch is not available. Numpy will be used instead.')
+    except ModuleNotFoundError:
+        print('(signal_noise_ratio) Module Pytorch is not found. Numpy will be used instead.')
         use_torch=False
 
     if algorithm=='':
@@ -937,6 +938,14 @@ def rho_in_ct(recon,names=None,center=[],width=0.0,save_path=''):
         mean_rho.append((recon[y1:y2, x1:x2].mean()*1000).round(2)) # change the unit to mg/cm^3
         draw_square([y0,x0], width, color='b')
 
+    if save_path=='':
+        save_path = choose_path('Please select directory to save reconstruction images:')
+        if save_path =='':
+            print('(rho_in_ct) Average density in the square(s) is:\n'
+                  '          ', mean_rho, 'mg/cm^3')
+            return np.array(mean_rho)
+
+    save_path = str(save_path)
     figures = fnmatch.filter(os.listdir(save_path),'*.png')
     n_fig = len(figures)
     if names: # if we know the name of the material for the CT recon
@@ -950,7 +959,6 @@ def rho_in_ct(recon,names=None,center=[],width=0.0,save_path=''):
         plt.savefig(save_path  + str(n_fig) + '.png')
         print('(rho_in_ct) Average density in the square(s) is:\n'
           '          ', mean_rho,'mg/cm^3')
-    # check existing figures in the folder
 
     return np.array(mean_rho)
 
@@ -960,7 +968,7 @@ def calculate_distance(path, x_location, proj, smooth_width=20):
     UNDER CONSTRUCTION
 
     Distance between beam focus and detector. This function is not required for spectral KES calculation.
-    This function is only useful with Selenate absorption spectrum, in which there are two significant
+    This function is only useful with Selenate absorption spectrum data, in which there are two significant
     peaks near selenium k-edge energy.
     :return:
     """
@@ -982,12 +990,29 @@ def calculate_distance(path, x_location, proj, smooth_width=20):
     mut = np.median(mut[:,x_location-round(smooth_width/2):x_location+round(smooth_width/2)],axis=1)
 
 
-
-
-
-
-
-
-
-
+def auto_center(data):
+    """
+    Use this to auto locate the rotation center for CT reconstruction.
+    'data' should be a 2-d array(axis[0] refers to projections, axis[1] refers to positions in one projection.)
+    :return 'drift' is the relative pixel location between the detected rotation center and the center
+            of the x-axis in the image. Negative value means rotation center is on the left side of the
+            center of the image, and positive value means the opposite.
+    """
+    areas=[]
+    center = round(data.shape[1]/2)
+    drifts = np.arange(-center+1,center) # center is also the radius
+    for d in drifts:
+        if d<=0:
+            a1 = data[0]
+            a2 = np.append(data[-1,2*d-1:0:-1],data[-1,2*d-1:])
+        else:
+            a1 = data[0]
+            a2 = np.append(data[-1,0:2*d],data[-1,:2*d-1:-1])
+    #     print(a1.shape,a2.shape,d)
+        a = np.vstack((a1,a2)).min(axis=0)
+    #     print(d,a.shape)
+        area = (a-a.min()).sum()
+        areas.append(area)
+    drift = drifts[np.array(areas).argmax()]
+    return(drift)
 

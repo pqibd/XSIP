@@ -1,7 +1,8 @@
-from near_edge_imaging import *
 from nei_beam_parameters import *
+from near_edge_imaging import *
 import inspect
 from datetime import datetime
+import copy
 
 def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multislice=False,
         slice=0, n_proj=900, ct=False, side_width=0,
@@ -25,7 +26,7 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     :param algorithm: The algorithm used to calculate $\rho t$. Options are:
                       'sKES_equation': Default option. A equation derived with least-square approach is used.
                                        Much faster than 'nnls'. [Ref: Ying Zhu,2012 Dissertation]
-                      'nnls'         : A Non-Negative Linear Regression will be performed with `scipy.optimize.nnls`.
+                      'nnls'         : A Non-Negative Least Square Regression will be performed with `scipy.optimize.nnls`.
     :param ct: If True, a piece of left and right side of projection image will be used to correct the air absorption
                from sample to detector.
     :param side_width: Used with param "ct". Define the width in pixel for air absorption correction
@@ -54,7 +55,7 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
              recons:  CT reconstruction [n_material,n_horizontal,n_horizontal]
              snrs:    Signal to Noise Ratio
              mean_rhos: The mean values of $\rho$ in the target area in recon image.
-
+    Todo: fix_skes_data_edges
     """
 
     ###############   define materials       ######################
@@ -71,17 +72,22 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     ##############   get path for experiment data file and path to save result  ######
     if data_path == '':
         data_path = choose_path()
-    print("\n Data directory: ",data_path,end='\n')
+    data_path = Path(data_path)
+    print("\n Data directory: ",str(data_path),end='\n')
 
-    if save_path == '':
-        save_path = data_path+'\\'+'Save'
+    if save_path == '': # if save_path is empty, automatically make one under data_path
+        # save_path = data_path+'\\'+'Save'
+        save_path = data_path/'Save'
+    save_path = Path(save_path)
     date = str(datetime.today().date())
     timelabel = str(datetime.now().time())[:8].replace(':', '-')
-    save_path = save_path + '\\' + date + '\\'+timelabel+'\\'
-    if not os.path.exists(save_path):
+    # save_path = save_path + '\\' + date + '\\'+timelabel+'\\'
+    save_path = save_path/date/timelabel
+    # make the save_path directory if it deosn't exist.
+    if not save_path.exists():
         os.makedirs(save_path)
 
-    print('\n Save directory: ',save_path,end='\n\n')
+    print('\n Save directory: ',str(save_path),end='\n\n')
     # start counting time
     start = time.clock()
 
@@ -101,10 +107,6 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     ########  get beam files: averaged flat, dark, and edge  ############
     print('\n(nei) Running "get_beam_files"')
     beam_files = get_beam_files(path=data_path, clip=clip, flip=flip, Verbose=Verbose)
-
-    #####################  get tomo data  ########################
-    print('\n(nei) Running "get_tomo_files"')
-    tomo_data = get_tomo_files(data_path,multislice=multislice,slice=slice,n_proj=n_proj)
 
     #################### Get beam_parameters #####################
     print('\n(nei) Running "nei_beam_parameters"')
@@ -137,6 +139,11 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     names = list(mu_rhos.keys())
     mu_rhos=np.array(list(mu_rhos.values()))
 
+    #################### Todo: iterate through multi-slices   ###################
+    #####################    get tomo data               ########################
+    print('\n(nei) Running "get_tomo_files"')
+    tomo_data = get_tomo_files(data_path,multislice=multislice,slice=slice,n_proj=n_proj)
+
     ####################  calculate -ln(r)=  mu/rho * rho * t   #################
     print('\n(nei) Running "calculate_mut"')
     mu_t = calculate_mut(tomo_data, beam_parameters, lowpass=lowpass,
@@ -160,7 +167,7 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     if reconstruction:
         print('\n(nei) Running CT reconstruction with '+reconstruction)
         pixel = setup.detector.pixel/10 #change pixel unit to cm
-        # Available reconstruction routines. Use the one specified by "reconstruction"
+        # Available reconstruction tools. Use the one specified by "reconstruction"
         recon_funcs={'idl':idl_recon,'skimage':skimage_recon}
         recons = recon_funcs[reconstruction](rho_t,pixel_size=pixel,center=ct_center)
         mean_rhos = rho_in_ct(recons,names,save_path=save_path)
@@ -186,7 +193,18 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     print('\n(nei) Total running time for "nei":'
           '\n     ', round(time.clock() - start, 2), 'seconds')
     result = Result(names,beam_parameters, mu_rhos, mu_t, rho_t, snrs,recons,mean_rhos)
-    print('\n(nei) Saving results')
-    save_result(save_path,result,args,values)
-    print('      Results are saved at',save_path)
+    print('\n(nei) Saving results...')
+    # Note: Use copy.deepcopy(). Because the save_object function would transform the
+    # structure of the input object into the form of nested dictionary.
+    save_result(save_path,copy.deepcopy(result),args,values)
+    print('      Results are saved at',str(save_path))
     return result
+
+
+def get_mut():
+    path = Path(choose_path())
+    beam_parameters = get_beam_parameters(path)
+    tomo = get_tomo_files(path)
+    mu_t = calculate_mut(tomo, beam_parameters)
+    return mu_t
+

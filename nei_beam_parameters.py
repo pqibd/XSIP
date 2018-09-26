@@ -44,7 +44,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     print('(nei_beam_parameters) Bragg angle in degree:\n'
           '                     ', round(theta_b * 180 / math.pi, 3))
 
-    # What is this?
+    # Todo: What is this? Maybe a lint
     bfact = math.cos(theta_b + chi) / math.cos(theta_b - chi)
 
     #######           Get beam_files       ################################
@@ -91,6 +91,8 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     deriv_all = abs(np.gradient(mu_t_smooth, axis=0))
     deriv_fwhm = mphy.fwhm(np.arange(ny), deriv_med)
     conv_filter = deriv_med[deriv_fwhm[1]:deriv_fwhm[2]]  # fwhm[1]: left side of fwhm; fwhm[2]: right side of fwhm
+    if Verbose:
+        plt.plot(conv_filter)
     deriv_conv = []
     for x in range(nx):
         deriv_x = deriv_all[:, x]
@@ -248,7 +250,7 @@ def get_beam_parameters(path='', e_range=0, Verbose=False):
     if path == '':
         path = choose_path()
     print("Data directory: ", path)
-
+    path = Path(path)
     #############  get system setup info from arrangement.dat   ##########
     setup = nei_get_arrangement(setup_type='File',path=path)
     detector = setup.detector

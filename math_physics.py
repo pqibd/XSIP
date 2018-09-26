@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import re
+from pathlib import Path
 from scipy.interpolate import interp1d
 
 
@@ -95,7 +96,7 @@ def fwhm(x,y,Verbose=False):
     fwhm      = right_fwhm-left_fwhm
 
     # show the plot if Verbose==True
-    if Verbose==True:
+    if Verbose:
         plt.figure()
         plt.scatter(x,y,s=3)
         plt.plot([left_fwhm,left_fwhm],[0,y.max()],color='y')
@@ -278,7 +279,7 @@ def element_info(element_name,no_whine=False):
 
 def molar_mass(name,Verbose=False):
     """
-
+    Unit: g/mol
     :param name: Element name or compound name. Example: "Na2SeO4"
     :return: Molar mass of input element or compound. Unit: g/mol.
     """
@@ -304,7 +305,7 @@ def molar_mass(name,Verbose=False):
     except: # Find the name of the compound in "composit.dat", and use the molecular information
             # provided there to calculate molar mass.
         total_mass = 0
-        with open(r'MU\COMPOSIT.DAT', 'r') as file:
+        with open(Path('MU/COMPOSIT.DAT'), 'r') as file:
             content = file.read().upper()
         # Use pattern1 to find the composite we want, and get the number of types of element it has
         pattern1 = ' ' + name.upper() + '.+\n'
@@ -337,7 +338,7 @@ def read_absorber(element_name,Verbose=False):
         print('(read_absorber) Looking for "'+element_name+'" in absorber.dat')
     # open 'absorber.dat' file, get to the interested element by regex,
     # get the ek, eta, ef..
-    with open(r'MU\ABSORBER.DAT', 'r') as file:
+    with open(Path('MU/ABSORBER.DAT'), 'r') as file:
         content = file.read()
     # create a pattern to find the element and the information we want
     pattern = '(?:\A|\n)(' + element_name + ' (?:.*\n\W)+.*)\n\w{1,2} ' # all the info for one element
@@ -366,36 +367,99 @@ def read_absorber(element_name,Verbose=False):
     e0 =np.zeros(3)
     xj =np.zeros([3,6])
     for i in range(3):
-        de[i]= float(ms[n_edges+n_edges//6+2+6*i][0])
-        c_a[i,:] = ms[n_edges+n_edges//6+2+6*i][1:9]
-        c_b[i:,] = ms[n_edges+n_edges//6+3+6*i]+ms[n_edges+n_edges//6+4+6*i]+ms[n_edges+n_edges//6+5+6*i]\
-                   +ms[n_edges+n_edges//6+6+6*i]
-        e0[i]    = float(ms[n_edges+n_edges//6+7+6*i][0])
-        xj[i,:]  = ms[n_edges+n_edges//6+7+6*i][1:7]
+        de[i]= float(ms[n_edges+(n_edges-1)//6+2+6*i][0])
+        c_a[i,:] = ms[n_edges+(n_edges-1)//6+2+6*i][1:9]
+        c_b[i:,] = ms[n_edges+(n_edges-1)//6+3+6*i]+ms[n_edges+(n_edges-1)//6+4+6*i]+ms[n_edges+(n_edges-1)//6+5+6*i]\
+                   +ms[n_edges+(n_edges-1)//6+6+6*i]
+        e0[i]    = float(ms[n_edges+(n_edges-1)//6+7+6*i][0])
+        xj[i,:]  = ms[n_edges+(n_edges-1)//6+7+6*i][1:7]
     c_a = np.array(c_a).astype(float)
     c_b = np.array(c_b).astype(float)
     xj  = np.array(xj).astype(float)
-
     edges=[]
-    for i in range(1,(2+n_edges//6)):
+    for i in range(1,(2+(n_edges-1)//6)):
         edges=edges+ms[i]
     edges = np.array(edges).astype(float)
     class Results:
         def __init__(self,ms,de,c_a,c_b,e0,xj):
             self.n_edges = int(ms[0][1])
             self.edges   = edges
-            self.eta = float(ms[2+n_edges//6][0])
-            self.ef  = float(ms[2+n_edges//6][1])
-            self.ek  = float(ms[2+n_edges//6][2])
-            self.za  = float(ms[2+n_edges//6][3])
-            self.a   = np.array(ms[2+n_edges//6+1:n_edges+2+n_edges//6]).astype(float)
+            self.eta = float(ms[2+(n_edges-1)//6][0])
+            self.ef  = float(ms[2+(n_edges-1)//6][1])
+            self.ek  = float(ms[2+(n_edges-1)//6][2])
+            self.za  = float(ms[2+(n_edges-1)//6][3])
+            self.a   = np.array(ms[2+(n_edges-1)//6+1:n_edges+2+(n_edges-1)//6]).astype(float)
             self.de  = de
             self.c_a = c_a
             self.c_b = c_b
             self.e0  = e0
             self.xj  = xj
-
     return Results(ms,de,c_a,c_b,e0,xj)
+# def read_absorber(element_name,Verbose=False):
+#     element_name = element_name.upper()
+#     if Verbose:
+#         print('(read_absorber) Looking for "'+element_name+'" in absorber.dat')
+#     # open 'absorber.dat' file, get to the interested element by regex,
+#     # get the ek, eta, ef..
+#     with open(Path('MU/ABSORBER.DAT'), 'r') as file:
+#         content = file.read()
+#     # create a pattern to find the element and the information we want
+#     pattern = '(?:\A|\n)(' + element_name + ' (?:.*\n\W)+.*)\n\w{1,2} ' # all the info for one element
+#     ms = re.search(pattern, content)
+#     if Verbose:
+#         print(ms.group())
+#     if ms: # if ms is not none (we found what we wanted), save the info into list of lists
+#         ms = ms.group(1)
+#         ms = ms.split('\n')# split different lines to a list
+#         lines = [] # save the values in each line in to a list
+#         for line in ms:
+#             lines.append(line.split())
+#         ms = lines
+#     else:
+#         raise Exception('element "'+ element_name+'" cannot be found in "absorber.dat" file.\n'
+#                         'Check the pattern of element name. For example, "SE" is correct pattern for Selenium.\n'
+#                         'If nothing is wrong with the name, you should go the "get_absorber.py" to '
+#                         'check \nthe regular expression searching pattern')
+#     # prepare de,c_a, c_b, e0, xj
+#     if Verbose:
+#         print(ms)
+#     n_edges = int(ms[0][1])
+#     de= np.zeros(3)
+#     c_a=np.zeros([3,8])
+#     c_b=np.zeros([3,16])
+#     e0 =np.zeros(3)
+#     xj =np.zeros([3,6])
+#     for i in range(3):
+#         de[i]= float(ms[n_edges+n_edges//6+2+6*i][0])
+#         c_a[i,:] = ms[n_edges+n_edges//6+2+6*i][1:9]
+#         c_b[i:,] = ms[n_edges+n_edges//6+3+6*i]+ms[n_edges+n_edges//6+4+6*i]+ms[n_edges+n_edges//6+5+6*i]\
+#                    +ms[n_edges+n_edges//6+6+6*i]
+#         e0[i]    = float(ms[n_edges+n_edges//6+7+6*i][0])
+#         xj[i,:]  = ms[n_edges+n_edges//6+7+6*i][1:7]
+#     c_a = np.array(c_a).astype(float)
+#     c_b = np.array(c_b).astype(float)
+#     xj  = np.array(xj).astype(float)
+#
+#     edges=[]
+#     for i in range(1,(2+n_edges//6)):
+#         edges=edges+ms[i]
+#     edges = np.array(edges).astype(float)
+#     class Results:
+#         def __init__(self,ms,de,c_a,c_b,e0,xj):
+#             self.n_edges = int(ms[0][1])
+#             self.edges   = edges
+#             self.eta = float(ms[2+n_edges//6][0])
+#             self.ef  = float(ms[2+n_edges//6][1])
+#             self.ek  = float(ms[2+n_edges//6][2])
+#             self.za  = float(ms[2+n_edges//6][3])
+#             self.a   = np.array(ms[2+n_edges//6+1:n_edges+2+n_edges//6]).astype(float)
+#             self.de  = de
+#             self.c_a = c_a
+#             self.c_b = c_b
+#             self.e0  = e0
+#             self.xj  = xj
+#
+#     return Results(ms,de,c_a,c_b,e0,xj)
 
 
 def mu_calculator(element_name,energies):
@@ -517,7 +581,7 @@ def composite_murho(name,energies,use_file=True):
     # 	;			density:	    density [g/cm^3]
     # 	;			atom_weight:	standard atomic weight [g/mol]
 
-    with open(r'MU\COMPOSIT.DAT', 'r') as file:
+    with open(Path('MU/COMPOSIT.DAT'), 'r') as file:
         content = file.read().upper()
     # Use pattern1 to find the composite we want, and get the number of types of element it has
     pattern1 = ' '+name.upper()+'.+\n'
@@ -583,19 +647,19 @@ def murho_selenium_compounds(name, energies, interpol_kind='linear'):
     :param interpol_kind:
     :return:
     '''
-    from scipy.interpolate import interp1d
-    path = r'C:\Users\qcyus\Dropbox (X-ray Imaging Group)\IDL procedures\Spectra Selenium compounds'
+    # path = Path(r'C:\Users\qcyus\Dropbox (X-ray Imaging Group)\IDL procedures\Spectra Selenium compounds')
+    path = Path('MU/LIB')
     name = name.upper()
     if name == 'SE-METH':
-        file = path + r'\semet-solid.CRS'
+        file = path /'semet-solid.CRS'
         estop = -1
         estart = -1
     elif name == 'K2SEO3':
-        file = path + r'\seo3-ph7.CRS'
+        file = path /'seo3-ph7.CRS'
         estop = -1
         estart = -1
     elif name == 'K2SEO4':
-        file = path + r'\seo4-ph7-1.CRS'
+        file = path / r'seo4-ph7-1.CRS'
         estop = -1
         estart = -1
     else:
@@ -649,9 +713,8 @@ def murho_from_file(name,file_name, energies, interpol_kind='linear'):
     :param interpol_kind:
     :return:
     '''
-    from scipy.interpolate import interp1d
-    path = r'MU\LIB'+'\\'
-    file = path+file_name
+    path = Path('MU/LIB')
+    file = path/file_name
     data = pd.read_csv(file, delimiter=r"\s+", skiprows=1,
                        names=['energies', 'cross_over', 'normalized'])
     e1 = energies
@@ -663,7 +726,7 @@ def murho_from_file(name,file_name, energies, interpol_kind='linear'):
     murho_e2 = murho(name, e2, use_file=False)
     # line up the first and last value of murho and a, then we use the a values to fake the murho values
     a = murho_e2[0] + (murho_e2[-1] - murho_e2[0]) * (a - a[0]) / (a.iloc[-1] - a[0])  # type(a): pandas...series
-    a = a - 0.5 * (e2 - e2.min())  # what is this used for?
+    a = a - 0.5 * (e2 - e2.min())  # Todo: what is this used for? It makes a slope for the a.
     dataframe_a = pd.DataFrame.from_dict({'energy': e2, 'murho': a}, )
 
     murho_e1 = murho(name, e1, use_file=False)
