@@ -1,10 +1,10 @@
-# Energy Dispersive X-ray Absorption Spectroscopy
+# Spectral-KES
 A python version of data analysis software for my Ph.D. project: selenium speciation with spectral KES imaging method.
 The basic algorithms were from the IDL programs written by **Dr. L. Dean Chapman**.
 
 # How to
 
-## Run EDXAS
+## Run Element Speciation
 
 ### Function `nei()`
 
