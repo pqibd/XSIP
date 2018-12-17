@@ -3,11 +3,10 @@ import math
 import scipy.constants as C
 
 
-def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical_motion=False,
+def nei_beam_parameters(beam_files, setup, detector, fix_vertical_motion=False,
                         clip=False, no_fit=False, Verbose=False, poly_degree=5):
     '''
     Unit of exy in the returned parameters: keV
-    :param display:
     :param sub_dir:
     :param setup:
     :param detector:
@@ -25,11 +24,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     diffraction_plane = setup.diffaction_plane
     e_range = setup.energy_range
 
-    # flip = detector.flip
     pixel = detector.pixel
-    # det_type = detector.type
-    # phperapu = detector.phperapu
-    # dispxd = detector.disp_x_demag
     pct_max = detector.pct_max
 
     ############### physics in the crystal #################
@@ -57,8 +52,6 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     x_range = np.arange(nx)
     y_range = np.arange(ny)
 
-    # median_width = 5
-
     edge_dark = edge - dark  # dark corrected edge
     flat_dark = flat - dark  # dark corrected flat
 
@@ -71,16 +64,9 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     beam_bot = beam_position.bot
     beam_peak = beam_position.peak
 
-    # flat_dark_filtered = median_filter(flat_dark, size=median_width)
-    # flat_max = flat_dark_filtered.max()
-
     if diffraction_plane.lower() == 'horizontal':
         raise Exception('"Diffraction plane: horizontal" has '
                         'not been set up for nei_beam_parameters. Come back in future.')
-
-    # # a filter to amplify the center of every spectrum
-    # median_flat_dark = np.median(median_filter(flat_dark, 5), axis=1)
-    # filter = median_flat_dark / median_flat_dark.max()
 
     ################ Find absorption edge y_positions ############################
     r = edge_dark / flat_dark
@@ -89,7 +75,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     deriv_med = abs(np.gradient(mu_t_median))
     mu_t_smooth = median_filter(mu_t, [10, 5])
     deriv_all = abs(np.gradient(mu_t_smooth, axis=0))
-    deriv_fwhm = mphy.fwhm(np.arange(ny), deriv_med)
+    deriv_fwhm = mp.fwhm(np.arange(ny), deriv_med)
     conv_filter = deriv_med[deriv_fwhm[1]:deriv_fwhm[2]]  # fwhm[1]: left side of fwhm; fwhm[2]: right side of fwhm
     if Verbose:
         plt.plot(conv_filter)
@@ -101,7 +87,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     deriv_conv = np.array(deriv_conv).T
     edge_positions_origin = deriv_conv.argmax(axis=0)
     ###### polynomial fit for edge_positions
-    edge_positions = mphy.polyfit(np.arange(nx), median_filter(edge_positions_origin, 3), degree=5)
+    edge_positions = mp.polyfit(np.arange(nx), median_filter(edge_positions_origin, 3), degree=5)
     edge_positions = np.round(edge_positions).astype(int)
 
     ##############  flat beam as filter to amplify center#############
@@ -137,12 +123,12 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     # It could have false values on left and right end when noise is too much
     # fwhms = []
     # for i in range(nx):
-    #     fwhms.append(mphy.fwhm(np.arange(ny),deriv_mut[:,i])[0])
+    #     fwhms.append(mp.fwhm(np.arange(ny),deriv_mut[:,i])[0])
     # fwhms = np.array(fwhms)
     # edge_widths = fwhms/(2*np.sqrt(2*np.log(2)))
 
     # get gaussian_edge_width by calculating the median fwhm for the whole mu_t image
-    fw = mphy.fwhm(np.arange(ny), deriv_med)[0]
+    fw = mp.fwhm(np.arange(ny), deriv_med)[0]
     edge_width = fw / (2 * np.sqrt(2 * np.log(2)))
 
     # fit the edge and peak with a 1st order polynomial to get slope of beam
@@ -169,8 +155,8 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
     ########### If e_range is set, use the set values  #################
     if (type(e_range) == list) & (e_range[0] >= 0) & (e_range[1] > e_range[0]):
         # if e_range is set with reasonable number, then use the e_range to define beam top and bottom
-        print('(nei_beam_parameters) Energy range is manually set to: \n'
-              '                      ', e_range)
+        print('(nei_beam_parameters) Selected energy range is limited to: \n'
+              '                      ', e_range,'keV')
         beam[:, :] = 0.0
         range_index = np.where((exy >= (e_range[0])) & (exy <= (e_range[1])))
         if len(range_index) > 0:
@@ -240,7 +226,7 @@ def nei_beam_parameters(beam_files, setup, detector, display=False, fix_vertical
 
 def get_beam_parameters(path='', e_range=0, Verbose=False):
     """
-    This function is used if the beam parameters is all you want.
+    This function is used if the beam parameters is all you need.
     :param path:
     :param e_range:
     :param Verbose:
@@ -261,7 +247,7 @@ def get_beam_parameters(path='', e_range=0, Verbose=False):
     beam_files = get_beam_files(path=path, Verbose=Verbose)
 
     ########  get beam parameters    ####################################
-    beam_parameters = nei_beam_parameters(display=False, beam_files=beam_files,
+    beam_parameters = nei_beam_parameters(beam_files=beam_files,
                                           setup=setup, detector=detector,
                                           fix_vertical_motion=False,
                                           clip=False, Verbose=Verbose)

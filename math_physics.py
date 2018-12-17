@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import re
 from pathlib import Path
+import inspect
 from scipy.interpolate import interp1d
+import scipy.constants as C
+import os
 
 
 class Constants:
@@ -70,9 +73,14 @@ class Constants:
                     0.000000, 0.000000, 0.000000, 0.000000]
     atom_mass_unit = 1.6606 * 10**(-24) # grams. atom mass unit
     electron_radius = 2.8179 * 10**(-13) # cm. Classical electron radius
+    h = C.h # Planck constant. Joer*s
+    c = C.c # speed of light. meter/s
+    eV = C.eV # eV to Joer
+    a0 = 5.4305  # Unit: Angstroms ##silicon crystal unit cell length at 300K.
+    # This is usually used as the internal standard for silicon
 
 
-def fwhm(x,y,Verbose=False):
+def fwhm(y,Verbose=False):
     '''
     :param x:
     :param y:
@@ -82,23 +90,22 @@ def fwhm(x,y,Verbose=False):
     ## If max is too close to either end, raise error
     ind_max = y.argmax()
     if ind_max<=2 or ind_max>=len(y)-2:
-        # raise Exception('(In fwhm.py,) Peak occurs at extreme limits of x range ... returning')
         return(0,0,0)
     half_max  = y.max()/2
     ind_max   = y.argmax()
-    low_index = np.where(y<half_max)[0]
-    left      = low_index[low_index<ind_max]
-    right     = low_index[low_index>ind_max]
+    low_index = np.where(y<half_max)[0] # index of all points lower than 'half_max'
+    left      = low_index[low_index<ind_max] # index of points on the left side out of 'fwhm'
+    right     = low_index[low_index>ind_max] # index of pintts on the right side out of 'fwhm'
     if len(left)*len(right)==0:
         return(0,0,0)
-    left_fwhm = left[-1]
-    right_fwhm= right[0]
-    fwhm      = right_fwhm-left_fwhm
+    left_fwhm = left[-1] # The index of the point at the very right of the 'left', so that it is also the left limit of 'fwhm'
+    right_fwhm= right[0] # The index of the point at the very left of the 'right', so that it is also the right limit of 'fwhm'
+    fwhm      = right_fwhm-left_fwhm # Width
 
     # show the plot if Verbose==True
     if Verbose:
         plt.figure()
-        plt.scatter(x,y,s=3)
+        plt.scatter(np.arange(len(y)),y,s=3)
         plt.plot([left_fwhm,left_fwhm],[0,y.max()],color='y')
         plt.plot([right_fwhm,right_fwhm],[0,y.max()],color='y')
         plt.title('FWHM')
@@ -332,13 +339,32 @@ def molar_mass(name,Verbose=False):
     return total_mass #g/mol
 
 
+def density(name,Verbose=False):
+    """
+    Now[2018-Oct-09] this density calculator only works for element density from `Constants`.
+     Unit: g/cm^3
+    :param name: Element name.
+    :param Verbose:
+    :return:
+    """
+    element_dens = dict(zip(Constants.elements, Constants.element_density))
+    return element_dens[name.upper()]
+
+
 def read_absorber(element_name,Verbose=False):
+    """
+
+    :param element_name:
+    :param Verbose:
+    :return:
+    """
     element_name = element_name.upper()
     if Verbose:
         print('(read_absorber) Looking for "'+element_name+'" in absorber.dat')
     # open 'absorber.dat' file, get to the interested element by regex,
     # get the ek, eta, ef..
-    with open(Path('MU/ABSORBER.DAT'), 'r') as file:
+    abs_path = Path(os.path.dirname(os.path.abspath(__file__)))
+    with open(abs_path/Path('MU/ABSORBER.DAT'), 'r') as file:
         content = file.read()
     # create a pattern to find the element and the information we want
     pattern = '(?:\A|\n)(' + element_name + ' (?:.*\n\W)+.*)\n\w{1,2} ' # all the info for one element
@@ -395,71 +421,6 @@ def read_absorber(element_name,Verbose=False):
             self.e0  = e0
             self.xj  = xj
     return Results(ms,de,c_a,c_b,e0,xj)
-# def read_absorber(element_name,Verbose=False):
-#     element_name = element_name.upper()
-#     if Verbose:
-#         print('(read_absorber) Looking for "'+element_name+'" in absorber.dat')
-#     # open 'absorber.dat' file, get to the interested element by regex,
-#     # get the ek, eta, ef..
-#     with open(Path('MU/ABSORBER.DAT'), 'r') as file:
-#         content = file.read()
-#     # create a pattern to find the element and the information we want
-#     pattern = '(?:\A|\n)(' + element_name + ' (?:.*\n\W)+.*)\n\w{1,2} ' # all the info for one element
-#     ms = re.search(pattern, content)
-#     if Verbose:
-#         print(ms.group())
-#     if ms: # if ms is not none (we found what we wanted), save the info into list of lists
-#         ms = ms.group(1)
-#         ms = ms.split('\n')# split different lines to a list
-#         lines = [] # save the values in each line in to a list
-#         for line in ms:
-#             lines.append(line.split())
-#         ms = lines
-#     else:
-#         raise Exception('element "'+ element_name+'" cannot be found in "absorber.dat" file.\n'
-#                         'Check the pattern of element name. For example, "SE" is correct pattern for Selenium.\n'
-#                         'If nothing is wrong with the name, you should go the "get_absorber.py" to '
-#                         'check \nthe regular expression searching pattern')
-#     # prepare de,c_a, c_b, e0, xj
-#     if Verbose:
-#         print(ms)
-#     n_edges = int(ms[0][1])
-#     de= np.zeros(3)
-#     c_a=np.zeros([3,8])
-#     c_b=np.zeros([3,16])
-#     e0 =np.zeros(3)
-#     xj =np.zeros([3,6])
-#     for i in range(3):
-#         de[i]= float(ms[n_edges+n_edges//6+2+6*i][0])
-#         c_a[i,:] = ms[n_edges+n_edges//6+2+6*i][1:9]
-#         c_b[i:,] = ms[n_edges+n_edges//6+3+6*i]+ms[n_edges+n_edges//6+4+6*i]+ms[n_edges+n_edges//6+5+6*i]\
-#                    +ms[n_edges+n_edges//6+6+6*i]
-#         e0[i]    = float(ms[n_edges+n_edges//6+7+6*i][0])
-#         xj[i,:]  = ms[n_edges+n_edges//6+7+6*i][1:7]
-#     c_a = np.array(c_a).astype(float)
-#     c_b = np.array(c_b).astype(float)
-#     xj  = np.array(xj).astype(float)
-#
-#     edges=[]
-#     for i in range(1,(2+n_edges//6)):
-#         edges=edges+ms[i]
-#     edges = np.array(edges).astype(float)
-#     class Results:
-#         def __init__(self,ms,de,c_a,c_b,e0,xj):
-#             self.n_edges = int(ms[0][1])
-#             self.edges   = edges
-#             self.eta = float(ms[2+n_edges//6][0])
-#             self.ef  = float(ms[2+n_edges//6][1])
-#             self.ek  = float(ms[2+n_edges//6][2])
-#             self.za  = float(ms[2+n_edges//6][3])
-#             self.a   = np.array(ms[2+n_edges//6+1:n_edges+2+n_edges//6]).astype(float)
-#             self.de  = de
-#             self.c_a = c_a
-#             self.c_b = c_b
-#             self.e0  = e0
-#             self.xj  = xj
-#
-#     return Results(ms,de,c_a,c_b,e0,xj)
 
 
 def mu_calculator(element_name,energies):
@@ -580,8 +541,8 @@ def composite_murho(name,energies,use_file=True):
     # 	;output:	mu_energy:	    mass absorption coefficient - energy absorption [cm^2/g]
     # 	;			density:	    density [g/cm^3]
     # 	;			atom_weight:	standard atomic weight [g/mol]
-
-    with open(Path('MU/COMPOSIT.DAT'), 'r') as file:
+    abs_path = Path(os.path.dirname(os.path.abspath(__file__)))
+    with open(abs_path/Path('MU/COMPOSIT.DAT'), 'r') as file:
         content = file.read().upper()
     # Use pattern1 to find the composite we want, and get the number of types of element it has
     pattern1 = ' '+name.upper()+'.+\n'
@@ -751,3 +712,69 @@ def murho_from_file(name,file_name, energies, interpol_kind='linear'):
     if type(e1) is int or type(e1) is float:
         murho_interpol = murho_interpol.item()
     return murho_interpol
+
+
+def magic(target='',theta=None, chi = None, R=None, nu=None,f_s=None):
+    def condition(theta, chi, R, nu, f_s):
+        ''' Return the absolute difference between `f_p` and `f_g`. When `condition == 0`, the magic condtion is matched. 
+        '''
+        # polychromatic focus function
+        f_p = (R*np.sin(2.0*theta))/(2.0*np.sin(chi+theta)+(1+nu)*np.sin(2.0*chi)*np.cos(chi+theta))
+        # geometric focus function
+        f_g = np.cos(chi-theta)/(np.cos(chi+theta)/f_s+2.0/R)
+        # magic condition
+        condition = abs(f_p-f_g)
+        return condition
+
+    if target =='theta':
+        theta_range_a = np.arange(0.0,360.0)
+    elif target =='chi':#todo
+        pass
+    scores_range_a = condition(np.radians(theta_range_a),chi,R,nu,f_s)
+    theta_a = theta_range_a[np.argmin(scores_range_a)]
+    # from PIL import Image
+    plt.plot(theta_range_a,scores_range_a)
+    plt.show()
+    print('a', )
+    theta_range_b = np.linspace(theta_a-2,theta_a+2,401)
+    scores_range_b = condition(np.radians(theta_range_b), chi, R, nu, f_s)
+    theta_b = theta_range_b[np.argmin(scores_range_b)]
+    print('b')
+    theta_range_c = np.linspace(theta_b-0.02,theta_b+0.02,401)
+    scores_range_c=condition(np.radians(theta_range_c), chi, R, nu, f_s)
+    theta_c = theta_range_c[np.argmin(scores_range_c)]
+    print('c')
+    return(theta_c)
+
+
+def bragg(hkl=[1,1,1],energy=None,theta=None):
+    """
+    Calculator for bragg angle and bragg energy. Requires the input of either energy or theta.
+    If the input is ENERGY, output will be THETA_B.
+    If the input is THETA_B, output will be ENERGY.
+    :param hkl: reflection lattice. Default is [1,1,1]
+    :param energy: Unit [keV]
+    :param theta: Unit [degree]
+    :return: Energy[keV] or Theta_b[degree]
+    """
+    a0 = Constants.a0  # Unit: Angstroms ##silicon crystal unit cell length at 300K.
+                 # This is usually used as the internal standard for silicon
+    c = Constants.c
+    h = Constants.h
+    eV = Constants.eV
+    d_hkl = a0 / np.sqrt((np.array(hkl) ** 2).sum())
+
+
+    if energy is not None:
+        theta=[]
+        for n in [1,2,3]:
+            lamb = (c * h / eV) / (energy * 1000) * (10 ** 10)  # WaveLength, Unit: Angstroms. E = h*c/lambda
+            theta.append(np.degrees(np.arcsin(n*lamb / (2 * d_hkl))))  # lambda = 2d*sin(theta)
+        return theta # degree
+
+    if theta is not None:
+        energy = []
+        for n in [1,2,3]:
+            lamb = 2*d_hkl *np.sin(np.radians(theta))/n
+            energy.append( (c*h/eV)*(10**10)/(1000*lamb))
+        return energy # keV

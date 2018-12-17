@@ -1,5 +1,6 @@
 from nei_beam_parameters import *
 from near_edge_imaging import *
+import re
 import inspect
 from datetime import datetime
 import copy
@@ -7,11 +8,11 @@ import copy
 def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multislice=False,
         slice=0, n_proj=900, ct=False, side_width=0,
         e_range=0,lowpass=False,use_torch=True,use_file=True,
-        fix_vertical_motion=False,  reconstruction=None, ct_center=0,
-        clip=False, flip=False, fix_cross_over=False,width_factor=1.0,
+        fix_vertical_motion=False,  reconstruction=None, ct_center=0, snr=False,
+        save = True, clip=False, flip=False, fix_cross_over=False,width_factor=1.0,
          use_sm_data=False, use_measured_standard=False,
         use_weights=False, energy_weights=0, flat_gamma=1.0,
-        put_dark_back=False, fix_detector_factor=0, snr=False,
+        put_dark_back=False, fix_detector_factor=0, 
         Verbose=False):
     """
     Get beam_parameters.
@@ -59,15 +60,19 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     """
 
     ###############   define materials       ######################
-    # if materials == '':
-    #     names = ['K2SeO4', 'K2SeO3', 'Se-Meth', 'Water']
-    #     sources = ['FILE', 'FILE', 'FILE', 'SYSTEM']
-    #     materials = {}
-    #     for i in range(len(names)):
-    #         materials[names[i]] = sources[i]
 
+    # if `materials` is not defined, ask for input now
     if materials == '':
+        materials = input('\nPlease input the names of the materials to investigate.\n'
+                          'For example: K2SeO4 Se-Meth, Water\n'
+                          'Or press Enter to skip\n')
+        materials = re.findall(r"[\w'-]+", materials)
+    # if still no input, use the hardwired predefined materials for Se EDXAS. The purpose is just to save time when
+    # repeating with same set of materials.
+    if materials == []:
         materials = ['K2SeO4', 'K2SeO3', 'Se-Meth', 'Water']
+    # print(materials)
+    # return
 
     ##############   get path for experiment data file and path to save result  ######
     if data_path == '':
@@ -118,12 +123,12 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
 
     ####################  Main calculation  #################################
     '''
-    The following is the main calculation for Energy Dispersive Xray Absorption Spectroscopy.
+    The following is the main calculation for Spectral Imaging / Energy Dispersive Xray Absorption Spectroscopy.
     
-    - We get mu_rho values for every material at every y(energy),x position on the detector (in the image).
-    - We calculate the $\mu t$ for every y position (representing energy) at every x position
+    - Get mu_rho values for every material at every y(energy),x position on the detector (in the image).
+    - Calculate the $\mu t$ for every y position (representing energy) at every x position
         (representing horizontal position in the sample) in every projection image.
-    - We calculate the $\rho t$ at every x(horizontal) position for every material.
+    - Calculate the $\rho t$ at every x(horizontal) position for every material.
     In theory, if there is only one material, we can solve the $\rho t$ with the information at one energy
     position, by $(\mu t)/(\mu/\rho)$. When we have 3 materials, we can solve it with 3 energy points.
     In reality, we have sometimes around 900 energy points, so we use linear regression (or other algorithm)
@@ -140,6 +145,19 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     mu_rhos=np.array(list(mu_rhos.values()))
 
     #################### Todo: iterate through multi-slices   ###################
+    # if multislice:
+    #     path = Path(data_path)
+    #     sub_dir = NeiSubDir(path)
+    #     tomo_files_all = file_search(sub_dir.Tomo, '*tif') # this is only a list of file names
+    #     n_tomo_files_all = len(tomo_files_all)
+    #     if isinstance(slice, int): # if integer, process this single slice
+    #         slices = [slice]
+    #     elif isinstance(slice,list): # if list, process slices in the list
+    #         slices = slice
+    #     else:# if slice is "All" or something else but not an Integer or List, process for all slices
+    #         slices = np.arange(n_tomo_files_all)
+    #
+    #     for s in slices:
     #####################    get tomo data               ########################
     print('\n(nei) Running "get_tomo_files"')
     tomo_data = get_tomo_files(data_path,multislice=multislice,slice=slice,n_proj=n_proj)
@@ -193,11 +211,17 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     print('\n(nei) Total running time for "nei":'
           '\n     ', round(time.clock() - start, 2), 'seconds')
     result = Result(names,beam_parameters, mu_rhos, mu_t, rho_t, snrs,recons,mean_rhos)
+    
     print('\n(nei) Saving results...')
-    # Note: Use copy.deepcopy(). Because the save_object function would transform the
-    # structure of the input object into the form of nested dictionary.
-    save_result(save_path,copy.deepcopy(result),args,values)
-    print('      Results are saved at',str(save_path))
+    if save:
+        # Note: Use copy.deepcopy(). Because the save_object function would transform the
+        # structure of the input object into the form of nested dictionary.
+        save_result(save_path,copy.deepcopy(result),args,values)
+        print('      Results are saved at',str(save_path))
+    else: # data will not be saved, but parameter settings will still be saved.
+        save_result(save_path,None,args,values)
+        print('      Parameters are saved at',str(save_path))
+
     return result
 
 

@@ -366,7 +366,7 @@ class NearEdgeImaging:
             self.entryEhigh['state'] = DISABLED
 
     def processMurho(self):
-        murho = mphy.murho(self.name.get(), 12.658)
+        murho = mp.murho(self.name.get(), 12.658)
         print("murho " + str(murho))
 
     def browseData(self):

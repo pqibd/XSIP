@@ -6,7 +6,7 @@ import time
 from scipy.ndimage import median_filter
 from scipy.ndimage import gaussian_filter
 from scipy.interpolate import interp1d
-import math_physics as mphy
+import math_physics as mp
 from toolkit import *
 
 
@@ -15,6 +15,22 @@ from toolkit import *
 #            'get_beam_files','nei','beam_near_edge_imaging', 'nei_beam_parameters',]
 
 class NeiSubDir:
+    """
+
+    Parameters
+    ----------
+    path : str
+        Path to the folder which contains one set of imaging data. Usually in this folder, there are subfolders named as 'DarkBefore', 'FlatBefore', 'EdgeABefore', 'Tomo', 'arrangement.dat'.
+    After : bool, optional (default False). 
+        Whether or not there are 'flat', 'dark', 'edge' collected after 'tomo' data collection.
+    EdgeB : bool, optional (default False). 
+        Whether or not there is a second 'edge' image folder.
+    
+    Returns
+    -------
+    A class object. 
+        Contains paths of all the subfolders.
+    """
     def __init__(self, path, After=False, EdgeB=False):
         self.DarkBefore = path /'DarkBefore'
         self.FlatBefore = path /'FlatBefore'
@@ -40,34 +56,24 @@ class NeiSubDir:
                 self.EdgeBAfter = path /'EdgeAAfter'
             else:
                 self.EdgeBAfter = path /'EdgeABefore'
-    # def __init__(self, path, After=False, EdgeB=False):
-    #     self.DarkBefore = path + r'/DarkBefore'
-    #     self.FlatBefore = path + r'/FlatBefore'
-    #     self.EdgeABefore = path + r'/EdgeABefore'
-    #     self.Tomo = path + r'/Tomo'
-    #     if After == True:
-    #         self.DarkAfter = path + r'/DarkAfter'
-    #         self.FlatAfter = path + r'/FlatAfter'
-    #         self.EdgeAAfter = path + r'/EdgeAAfter'
-    #     else:  # use 'Before' for all 'After'
-    #         self.DarkAfter = path + r'/DarkBefore'
-    #         self.FlatAfter = path + r'/FlatBefore'
-    #         self.EdgeAAfter = path + r'/EdgeABefore'
-    #     if EdgeB == True:
-    #         self.EdgeBBefore = path + r'/EdgeBBefore'
-    #         if After == True:
-    #             self.EdgeBAfter = path + r'/EdgeBAfter'
-    #         else:
-    #             self.EdgeBAfter = path + r'/EdgeBBefore'
-    #     else:  # use EdgeA for all EdgeB
-    #         self.EdgeBBefore = path + r'/EdgeABefore'
-    #         if After == True:
-    #             self.EdgeBAfter = path + r'/EdgeAAfter'
-    #         else:
-    #             self.EdgeBAfter = path + r'/EdgeABefore'
 
 
 def nei_get_arrangement(path,setup_type='FILE'):
+    """Reads in the arrangement for the experiment from the 'arrangement.dat' file. 
+
+    Parameters
+    ----------
+    path : str
+        Path to the folder which contains one set of imaging data. Usually in this folder, there are subfolders named as 'DarkBefore', 'FlatBefore', 'EdgeABefore', 'Tomo', 'arrangement.dat'.
+    setup_type : str, optional,{'File','Manual'}. 
+    Defines the way to input system arrangements.
+        'File'. Find 'arrangement.dat' in the given path for arrangement. If 'arrangement.dat' is not found, it will automatically switch to 'Manual' mode.
+        'Manual'. Popup a window to manually input arrangement. Todo.
+    Returns
+    -------
+    arrangement : Class
+        The system arrangement information
+    """
     class get_arrangement:
         def __init__(self, path):
             filename = path/'arrangement.dat'
@@ -100,11 +106,15 @@ def nei_get_arrangement(path,setup_type='FILE'):
                 self.phperapu = float(data['det_phperapu'])
                 self.disp_x_demag = float(data['det_disp_x_demag'])
                 self.pct_max = float(data['det_pct_max'])
-
-    arrangement = get_arrangement(path)
+    try:
+        arrangement = get_arrangement(path)
+    except:
+        print('(nei_get_arrangement)The "arrangement.dat" file either does not exist in the specified directory, or has error in it')
+        #pop up a tkinter window for the 'arrangement' settings
+        
     arrangement_parameters = {'diffaction_plane': ' DIFFRACTION PLANE:',
                               'type': ' TYPE:',
-                              'chi_degrees': ' ASYMETTRY ANGLE (CHI):',
+                              'chi_degrees': ' ASYMMETRY ANGLE (CHI):',
                               'hkl': ' HKL:',
                               'energy': ' ENERGY (keV):',
                               'energy_range': ' ENERGY RANGE (keV):',
@@ -130,11 +140,28 @@ def nei_get_arrangement(path,setup_type='FILE'):
 
 def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
                       rotate_90=False,twelve_bit=0):
-    # read all the image files into a 3D array[n_images,rows,columns],
-    # take the average along the images, so that we get an average image.
-    # Returned value is 2d array
+    """
 
-    # twelve_bit=
+    Parameters
+    ----------
+    files : `list` of `str`. 
+        List of path+filenames of every image file.
+    flip : 
+        This is not used in the program for now (Nov. 15, 2018)
+    xlow : 
+        This is not used in the program for now (Nov. 15, 2018)
+    xhigh : 
+        This is not used in the program for now (Nov. 15, 2018)
+    rotate_90 : 
+        This is not used in the program for now (Nov. 15, 2018)
+    twelve_bit : 
+        This is not used in the program for now (Nov. 15, 2018)
+    Returns
+    -------
+    average : array_like with shape [ny, nx].
+        The average of input images.
+    """
+
     n_files = len(files)
     image_array = []
     for i in range(n_files):
@@ -143,16 +170,32 @@ def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
     average = image_array.mean(axis=0)
     return(average)
 
+
 def get_beam_files(path,After=False,Verbose=False,clip=False, flip=False):
     '''
     return averaged flat, dark, edge images in form of 2d-arrays.
-    :param path:
-    :param Verbose:
-    :param clip: Used only to trim off the left and right black area out of the beam.
-                 This is usually not necessary, because the beam is supposed to fill
-                 the image all the way horizontally
-    :param flip:
-    :return: beam_files: averaged flat, dark, edge images in form of 2d-arrays.
+    Parameters
+    ----------
+    path : str 
+        Path to the folder which contains one set of imaging data. Usually in this folder, there are subfolders named as 'DarkBefore', 'FlatBefore', 'EdgeABefore', 'Tomo', 'arrangement.dat'.
+    After : 
+        This is not used in the program for now (Nov. 15, 2018)
+    clip : bool, optional (default False). 
+        Whether to clip the side of the image view. This is needed only when the beam does not fill the whole view of image in the horizontal direction. Usually this is not needed.
+    Verbose: bool, optional (default False). 
+        Whether to print some information or show some images/plots for inspection during the running of this function.
+    flip: 
+        This is not used in the program for now (Nov. 15, 2018)
+    Returns
+    -------
+    BeamFiles: Class object
+        .flat: [ny, nx] array. Averaged flat image.
+        .dark: [ny, nx] array. Averaged dark image.
+        .edge: [ny, nx] array. Averaged edge image.
+        .horizontal_low: int. Left border pixel index of useful beam region.
+        .horizontal_high: int. Right border pixel index of useful beam region.
+        .origin_beam_files: Class object. Contains beam files without clipping.
+
     '''
     path = Path(path)
     sub_dir = NeiSubDir(path, After=False, EdgeB=False)
@@ -213,8 +256,8 @@ def get_beam_files(path,After=False,Verbose=False,clip=False, flip=False):
             plt.show()
 
         idx_left = (fn>0); idx_right = (fn<0)
-        fwhm_left,left_low,left_high = mphy.fwhm(x[idx_left],fn[idx_left],Verbose=Verbose)
-        fwhm_right,right_low,right_high=mphy.fwhm(x[idx_right],-fn[idx_right],Verbose=Verbose)
+        fwhm_left,left_low,left_high = mp.fwhm(x[idx_left],fn[idx_left],Verbose=Verbose)
+        fwhm_right,right_low,right_high=mp.fwhm(x[idx_right],-fn[idx_right],Verbose=Verbose)
         horizontal_low=left_high
         horizontal_high=right_low
         flat = flat[:,horizontal_low:horizontal_high]
@@ -233,28 +276,38 @@ def get_beam_files(path,After=False,Verbose=False,clip=False, flip=False):
     return BeamFiles(flat,dark,edge,horizontal_low,horizontal_high,origin_beam_files)
 
 
-def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False, After=False, EdgeB=False):
+def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False):
     """
     Read all the tomo files in tomo folder, or n_proj images for one slice of CT.
-    :param path:
-    :param multislice: If True, n_proj images will be read in for the wanted single slice.
-    :param slice: Which slice do you want? Start from 0.
-    :param n_proj: How many projection images are there in one slice
-    :param Verbose:
-    :param After:
-    :param EdgeB:
-    :return: 3d-array [n_tomo(n_proj), n_energies, n_horizontal_positions]
+    Parameters
+    ----------
+    path : str
+        Path to the folder which contains one set of imaging data. Usually in this folder, there are subfolders named as 'DarkBefore', 'FlatBefore', 'EdgeABefore', 'Tomo', 'arrangement.dat'.
+    multislice : bool 
+        Default False. Whether the 'tomo' data folder contains projection images for multislices.
+    slice : int, non-negative (default 0). 
+        If multislice = True, slice specifies which slice of all the projection images will be used for data analysis and CT reconstruction.
+    n_proj : int, positive (default 900) 
+        If multislice = True, n_proj tells the program how many projection images that one slice contains. It is used to determine which slice the projection images belongs to.
+    Verbose : bool, optional (default False). 
+        Whether to print some information or show some images/plots for inspection during the running of this function.    
+    Returns
+    -------
+    tomo_data: float, [n_tomo_images, ny, nx] ndarray. 
+        The tomo data in 3d array (of one slice, if multislice = True).
     """
     path = Path(path)
-    sub_dir = NeiSubDir(path, After=After, EdgeB=EdgeB)# todo
-    tomo_files = file_search(sub_dir.Tomo, '*tif')
+    sub_dir = NeiSubDir(path)# todo
+    tomo_files_all = file_search(sub_dir.Tomo, '*tif')
 
     # get the tomo images for ONE slice when there are multislices of projections in tomo image folder.
     if multislice == True:
         i_begin = n_proj * slice
         i_end = i_begin + n_proj
-        tomo_files = tomo_files[i_begin:i_end]
+        tomo_files = tomo_files_all[i_begin:i_end]
         print('(get_tomo_files) Tomo files in 1 slice loaded')
+    else:
+        tomo_files = tomo_files_all
     n_tomo = len(tomo_files)
     print('(get_tomo_files) Number of Tomo files: ', n_tomo)  # equal to n_projections
 
@@ -270,33 +323,32 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False, A
         counter+=1
     print()
     tomo_data = np.array(tomo_data)
-    return (tomo_data)
+    return tomo_data
 
 
 def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='linear',
                          use_file=True,use_sm_data=False, use_measured_standard=False):
     '''
-    For every compound, every horizontal position, get the murho value for that
-    compound at every energy point (y position on the detector). Ways to get murho values
-    are defined by "source".
-    materials structure:
-        - names: what you call each material, i.e. 'K2SeO4'
-        - sources: how we find the mu/rhos for that element or compound
-            - system   : get it from calculation with known chemical information
-            - FILE : get it from a file
-            - standard: get murho from experiment standard. Stardard data are collected
-                         with current experiment setting, and standard selenium compound solution ,etc.
-    i.e. materials = { names:names, sources:sources }
-    where: names = ['Water', 'Bone', 'Selenite', 'U'   ]
-           sources = [  'system',  'system',     'FILE', 'system' ]
-    :param materials:
-    :param exy:
-    :param gaussian_energy_width:
-    :param interpol_kind: default value is 'linear'. See 'scipy.interpolate.interp1d' for other available
-                          "interpol_kind"s.
-    :param use_sm_data:
-    :param use_measured_standard:
-    :return:
+    Parameters
+    ----------
+    materials : `list` of `str`. 
+        Example: materials = ['Water', 'Bone', 'Selenite', 'U' ]. Names of materials that we are investigating. They can be a standard compound name that gives all the information for the composition ('Na2SeO4'), or it can be an element name ('Se'), or it can be a nick name of a compound or material that we have stored the information in the 'COMPOSIT.DAT' file. The names are used to find the according μ/ρ of that material, so that they are very important.
+    exy : float, [ny(n_energies), nx(n_horizontal_pixel)]  ndarray. 
+        The energy 'map' on the detector. The value @ [iy, ix] location is the x-ray energy @ that pixel. The energy will be used to find according μ/ρ.
+    gaussian_energy_width : float 
+        The 'sigma' parameter of Gaussian function in terms of energy. It has a close relation to the system ENERGY RESOLUTION.
+    interpol_kind : str, optional
+        Ddefault 'linear'. This is used for the scipy.interpolate.interp1d function. See scipy documentation for detail (https://docs.scipy.org/doc/scipy-0.19.1/reference/generated/scipy.interpolate.interp1d.html).
+    use_file : bool
+        Default True. Whether use the information in a stored file for the μ/ρ. If use_file = True, but actually there is no file for it, then it will automatically use computed value for \mu/\rhoμ/ρ.
+    use_sm_data : bool
+        Default False. Whether use a measured reference or a stored reference (in a file or by computation) from past for selenomethionine. This is not ready in the program yet. (Nov. 16, 2018)
+    use_measured_standard: bool. 
+        Default False. Whether use a measured reference or a stored reference (in a file or by computation)from past. This is not ready in the program yet. (Nov. 16, 2018)
+    Returns
+    -------
+    murhos_all: float [n_materials, ny, nx] array. 
+        For every material, the μ/ρ at every pixel on the detector.
     '''
     nx = exy.shape[1]
     ny = exy.shape[0]  # number of energies
@@ -313,10 +365,10 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
     #     print('(nei_determine_murhos) Getting murho data for ' + name)
         # if source.lower() == 'file':
         #     # get murho from saved file
-        #     mu_rho = mphy.murho_selenium_compounds(name, energies)
+        #     mu_rho = mp.murho_selenium_compounds(name, energies)
         # elif source.lower() == 'system':
         #     # get murho by calculating it for every element
-        #     mu_rho = mphy.murho(name, energies)
+        #     mu_rho = mp.murho(name, energies)
         # elif source.lower() == 'standard':
         #     # Todo:
         #     # get murho from experiment standard. Stardard data are collected with current experiment setting,
@@ -329,7 +381,7 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
     # for name, source in materials.items():
     for name in materials:
         print('(nei_determine_murhos) Getting murho data for ' + name)
-        mu_rho = mphy.murho(name, energies, use_file=use_file)
+        mu_rho = mp.murho(name, energies, use_file=use_file)
         murhos[name] = mu_rho
 
     ####################  Blur the edge if needed  ##################
@@ -369,15 +421,26 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
 def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     '''
     Locate the peak positions in the flat beam. Decide the useful region in the beam we are going to keep.
-    :param flat_dark: flat-dark, 2D array
-    :param threshold: percentage of the max value. Beam values higher than threshold will be kept.
-    :param no_fit: No polynomial fit for the peak positions in the beam.
-    :param Verbose:
-    :param poly_deg: The degree parameter for doing polynomial fit.
-    :return: Peak position in flat_dark image.
-             Beam region we will use for analysis that follows.
-             Top positions of the useful beam region.
-             Bottom postions of the useful beam region.
+    Parameters
+    ----------
+    flat_dark : float, [ny, nx] ndarray. 
+        average_flat - average_dark. Dark corrected average flat image.
+    threshold : float
+        In range of [0,100] as percentage of the max value of flat_dark. The threshold is specified in the 'arrangement.dat'. It is used to define the region of the beam (in the vertical direction) that we are going to use. When 'threshold' is 50, it means we use the fwhm as the useful beam region.
+    no_fit : bool. Optional.
+        Default False. Whether to do the polynomial fitting for peak positions over horizontal direction.
+    poly_deg : int, positive
+        Default 5. The degree of polynomial fitting. 5 is suggested.
+    Verbose: bool, optional
+        Default False. Whether to print some information or show some images/plots for inspection during the running of this function.    
+    Returns
+    -------
+    BeamEdges: Class object
+        Contains .top, .bot, .peak,.beam.
+        .top: float, [nx] array. The top positions of the usable beam.
+        .bot: float, [nx] array. The bottom positions of the usable beam.
+        .peak: float, [nx] array. The peak positions of the flat_dark image. Usually polynomial fitted.
+        .beam: float, [ny, nx] array. The usable beam region. This 2d array has the same shape flat and other image data array. And the usable region has is labeled with value 1, while the rest is labeled with value 0.
     '''
     shape = flat_dark.shape
     nx = shape[1]; ny = shape[0]
@@ -397,7 +460,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
                                                #This is also the plan B
 
         # Call Gaussfit to calculate center and sigma, then the width
-        spectrum_gauss,gauss_popt = mphy.gaussfit(y_index,spectrum,estimate)
+        spectrum_gauss,gauss_popt = mp.gaussfit(y_index,spectrum,estimate)
         gauss_center = gauss_popt[1]
         gauss_sigma  = gauss_popt[2]
         y_peak = int(round(gauss_center))
@@ -461,20 +524,6 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
         plt.title('Selected Beam Area')
         plt.show()
 
-    ########### poly degress study ####################################
-    # peak_poly_coef = np.polyfit(np.arange(nx), peak_positions,deg=4)
-    # p = np.poly1d(peak_poly_coef)
-    # peak_positions_poly4 = p(np.arange(nx))
-    # if Verbose:
-    #     plt.plot(peak_positions_poly4,color='g',label='Poly degree=4')
-    #
-    # peak_poly_coef = np.polyfit(np.arange(nx), peak_positions,deg=6)
-    # p = np.poly1d(peak_poly_coef)
-    # peak_positions_poly6 = p(np.arange(nx))
-    # if Verbose:
-    #     plt.plot(peak_positions_poly6,color='y',label='Poly degree=6')
-    #     plt.legend()
-    #     plt.show()
     ###################################################################
     #Approach 2:
     ################################################################
@@ -505,92 +554,26 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     return s
 
 
-def idl_recon(sinogram,pixel_size,center=0):
-    """
-    CT reconstruction with the "normalized_fbp" function from IDL. Note: Licensed IDL software is required.
-    :param sinogram: 3d or 2d-array [n_projections,n_horizontal_positions]
-    :param pixel: pixel size in centimeter. For example: 0.0009 for 9um.
-    :param center: Default 0. The sample rotation center during CT imaging.
-    :return: reconstructed square 2d-array [n_horizontal_positions,n_horizontal_positions]
-    """
-    from idlpy import IDL
-    dimensions = sinogram.ndim
-    if dimensions ==3:
-        recon=[]
-        for i in range(sinogram.shape[0]):
-            recon.append(IDL.normalized_fbp(sinogram[i],dx=center,pixel=pixel_size))
-        recon = np.array(recon)
-    elif dimensions==2:
-        recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel_size)
-    else:
-        raise Exception('The dimensions of input "sinogram" should be either 2 or 3.'
-                        ,dimensions,'dimensions were given.')
-    return recon
-
-
-def skimage_recon(sinogram,pixel_size=1.0,output_size=None,filter='ramp',center=0,circle=True):
-    """
-    CT reconstruction using Inverse Radon Transform, with Filtered Back Projection algorithm.
-    See "radon_transform" in skimage.transform for more detail.
-
-    :param sinogram:array_like, dtype=float
-                    Image containing radon transform (sinogram).
-                    If n_dimension==2, each row of the image corresponds to
-                    a projection along a different angle. The tomography
-                    rotation axis should lie at the pixel index.
-                    If n_dimension>=3, the last two dimensions should be the
-                    sinogram.
-    :param n_proj: Integer. Number of projections taken for one slice of CT imaging
-    :param pixel_size: Float. Pixel size of the detector. Unit: cm.
-    :param output_size: The width of the output reconstruction image.
-                        If Output_size not specified, use the image horizontal width.
-    :param filter: str, optional (default ramp)
-                    Filter used in frequency domain filtering. Ramp filter used by default.
-                    Filters available: ramp, shepp-logan, cosine, hamming, hann.
-                    Assign None to use no filter.
-    :param center: The rotation center of CT imaging.(default 0)
-    :param circle: boolean, optional
-                    Assume the reconstructed image is zero outside the inscribed circle.
-                    The default behavior (None) is equivalent to False.
-    :return: Reconstruction image arrays, with the same number of dimensions of the input
-             sinogram array.
-    """
-    from skimage.transform import iradon
-    # if sinogram.ndim>=3, which means there is more than one sinogram. Iterate them all.
-    # The last two dimension should be the sinogram array.
-    if sinogram.ndim>=3:
-        recon = []
-        for i in range(sinogram.shape[0]):
-            recon.append(skimage_recon(sinogram[i],pixel_size=pixel_size,
-                                       output_size=output_size,filter=filter,center=center,
-                                       circle=circle))
-        recon = np.array(recon)
-        return recon
-    # when sinogram.ndim==2, do the reconstruction.
-    print('(skimage_recon) Started one CT reconstruction...',end='')
-    n_proj = sinogram.shape[0]
-    if not output_size: # If Output_size not specified, use the image horizontal width
-        output_size=sinogram.shape[1]
-    sinogram = sinogram.transpose(1,0) # transpose row and column to meet the order in skimage.transform.
-    theta = np.linspace(0,180,n_proj) # make the angles of projections from 0 to 180 degree
-    recon = iradon(sinogram,theta=theta,output_size=output_size,filter=filter,
-                   center_drift=center,circle=circle)
-    # correct result with pixel size (cm).
-    recon = recon/pixel_size
-    print('...Finished')
-
-    return recon
-
-
 def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0):
     """
     mu*t =  (mu/rho) * (rho * t) = -ln[(tomo-dark)/(flat-dark)]
-    :param tomo_data:
-    :param beam_parameters:
-    :param lowpass: Use gaussian filter to smooth the mu_t spectrum along the energy axis
-    :param ct: If ct, use the left and right of projection to remove air absorption
-    :param side_width: the width used for the "ct" parameter
-    :return: mu_t: 3d-array [n_tomo, ny, nx]
+    Parameters
+    ----------
+    tomo_data : float, [n_tomo_images (n_angles), ny, nx] ndarray
+        The tomo data in 3d array (of one slice, if multislice = True). It is returned by the function `get_tomo_file`.
+    beam_parameters :  Class object. 
+        Contains plenty of information, returned by the function nei_beam_parameters.
+    lowpass: bool, optional
+        Default False. Whether use a low_pass filter (Gaussian Filter)to smooth the signal.
+    ct: bool, optional
+        Default False. Whether use some pixels on the side of the image to calculate the absorption by air for two things.
+            1. To remove the air absorption from the signal.
+            2. To fix the ring artifect by normalizing the value of air absorption through the CT scan.
+    side_width : int, required if `ct` is `True`
+        Default 0. The number of pixels on the side of the image for calculating air absorption. Make sure it is only air in all the tomo images in these pixels.
+    Returns
+    -------
+    mu_t: float, [n_tomo_images (n_angles), ny, nx] ndarray
     """
     ####################  calculate -ln[(tomo-dark)/(flat-dark)]   #################
     # tomo_data.shape is [n_tomo,ny,nx]
@@ -613,8 +596,8 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
         if ct: # remove air absorption. Calculated from the left and right of the projection image,
                # where there should be only air, no sample.
             if side_width<=0: # making sure side_width is valid.
-                raise Exception('When "CT" is True, "side_width" is used to remove air absorption, and '
-                                '"side_width" has to be an integer >0')
+                raise Exception('When `ct` is `True`, `side_width` needs to be defined for removing air absorption, and '
+                                'it has to be an integer >0')
             # mut_left_total = (mu_t[i]*beam)[:,0:side_width].sum()
             # mut_right_total= (mu_t[i]*beam)[:,-side_width:].sum()
             mut_left_total = mu_t[i][:, 0:side_width].sum()
@@ -633,9 +616,8 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
             print('>' * (counter % int(n_tomo / 50) == 0), end='')
         counter += 1
     print('')
-        # print("\r                  %d%%" % (round((i/n_tomo)*100)),end='')
-    # use a lowpass filter (gaussian filter) to remove some high frequency noise
-    # Todo: decide the default value for "lowpass"
+    # use a lowpass filter (gaussian filter) to remove high frequency noise
+    # Todo: decide the default sigma value for "lowpass" filter
     pixel_gaussian_width = beam_parameters.pixel_edge_width
     if lowpass:
         print('(calculate_mut) Applying lowpass filter along energy axis')
@@ -646,20 +628,25 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
 
 def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
     """
-    calculate the $\rho t$ for every material at every horizontal position in every projection
-    :param mu_rhos: mu_rhos is obtained from "nei_determine_murhos". {material: [n_energies,,nx]...}
-    :param mu_t: mu_t is obtained from "calculate_mut" .[n_projections,n_energies,nx]
-    :param beam: beam is obtained from "beam_parameters.beam". [n_energies,nx]
-    :param algorithm: The core algorithm to calculate $\rho t$.
-                      Availabe options are ["nnls", "sKES_equation"] for now (Aug 27, 2018).
-                      If "nnls": `scipy.optimize.nnls` will be used to perform linear regression
-                                  for the spectrum at every horizontal position in every projection image.
-                      If "sKES_equation": A equation derived with least-square approach is used.
-                                           Because matrix operation is used here for calculation, it is much
-                                           faster than doing all the iterations with "nnls".
-                                           [Ref: Ying Zhu,2012 Dissertation]
-    :return: 3d-array with shape [n_materials, n_projection,nx]}. For CT data, the last two dimensions
-             form the sinogram.
+    calculate the **ρ⋅t** for every material at every horizontal position in every projection
+    Parameters
+    ----------
+    mu_rhos : dict, `{'material_name': [ny(n_energies),nx(n_horizontal_positions)] array, ...}` 
+        `mu_rhos` is obtained from nei_determine_murhos.
+    mu_t : float, [n_projections(n_angles),ny(n_energies),nx(n_horizontal_positions)] ndarray. 
+        `mu_t` is obtained from calculate_mut.
+    beam : float, [n_energies,nx] ndarray. 
+        `beam` is obtained from nei_beam_parameters.
+    algorithm : {"sKES_equation","nnls"}
+        The algorithm used for calculating ρ⋅t. Available options are ["nnls", "sKES_equation"] for now (Aug 27, 2018).
+            If "nnls": ``scipy.optimize.nnls`` will be used to perform linear regression for the spectrum at every horizontal position in every projection image.
+            If "sKES_equation" (default) : An equation derived with least-square approach is used. Because the calculation here is done in matrix operation, it is much faster than iterating with "nnls". [Ref: Ying Zhu,2012 Dissertation]
+    use_torch : bool, optional
+        Default True. Whether use `torch.tensor` for matrix operation.
+    Returns
+    -------
+    rho_t: float, [n_materials,n_tomo,nx] ndarray 
+        Sinograms (the last two dimensions) of all the materials.
     """
     try:
         import torch
@@ -771,15 +758,17 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
     """
     Spectral KES for m-components SNR equation is used for SNR calculation.
     [Ref: Ying Zhu,2012 Dissertation]
-    :param mu_rhos:
-    :param mu_t:
-    :param rho_t:
-    :param beam_parameters:
-    :param tomo_data:
-    :param use_torch: Default True. Use torch.tensor for matrix operations. If False,
-                      numpy.array is used instead, which is about half the speed of
-                      tensor for the computation here.
-    :return: snrs. Numpy array, in shape of [n_materials,n_projections,n_horizontal_positions]
+    Parameters
+    ----------
+    mu_rhos : dict, {material_name: [ny(n_energies),nx(n_horizontal_positions)] array, ...} 
+        `mu_rhos` (μ/ρ) is returned from nei_determine_murhos.
+    mu_t : float, [n_projections(n_angles),ny(n_energies),nx(n_horizontal_positions)] array. 
+        `mu_t` (μ⋅t) is returned from calculate_mut.
+    rho_t: float, [n_materials,n_tomo,nx] array. 
+        `rho_t` (ρ⋅t) is returned from calculate_rhot.
+    Returns
+    -------
+    snrs: float, [n_materials,n_tomo,nx] array
     """
     try:
         import torch
@@ -878,24 +867,146 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
     return snrs # [n_materials,n_proj,nx]
 
 
+def idl_recon(sinogram,pixel_size,center=0):
+    """
+    CT reconstruction with the "normalized_fbp" function from IDL. Note: Licensed IDL software is required.
+    Parameters
+    ----------
+    sinogram: 3d or 2d-array, shape [(n_something),n_projections (n_angles),n_horizontal_positions]
+    pixel_size: float. 
+        Pixel size (resolution) of the detector in centimeter. For example: 0.0009 for 9um.
+    center: int, default 0. 
+        The rotation center in pixel during CT imaging. If 0, the horizontal center pixel in the image is used as the rotation center. Positive integer means the number of pixels to the right of the horizontal center of the image. Negative integer means the number of pixels to the left of the horizontal center of the image
+    Returns
+    -------
+    recon : [(n_something),n_horizontal_positions,n_horizontal_positions] 3d or 2d array. 
+        Reconstructed image(s) with a square shape.
+    """
+    from idlpy import IDL
+    dimensions = sinogram.ndim
+    if dimensions ==3:
+        recon=[]
+        for i in range(sinogram.shape[0]):
+            recon.append(IDL.normalized_fbp(sinogram[i],dx=center,pixel=pixel_size))
+        recon = np.array(recon)
+    elif dimensions==2:
+        recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel_size)
+    else:
+        raise Exception('The dimensions of input "sinogram" should be either 2 or 3.'
+                        ,dimensions,'dimensions were given.')
+    return recon
+
+
+def skimage_recon(sinogram,pixel_size=1.0,output_size=None,filter='ramp',center=0,degrees = 180,circle=True):
+    """
+    CT reconstruction using Inverse Radon Transform, with Filtered Back Projection algorithm.
+    See "radon_transform" in skimage.transform for more detail.
+    Parameters
+    ----------
+    sinogram : 3d or 2d-array [(n_something),n_projections (n_angles),n_horizontal_positions]
+    pixel_size : float. 
+        Pixel size (resolution) of the detector in centimeter. For example: 0.0009 for 9um.
+    output_size : int, optional. 
+        The width of the output reconstruction image. If output_size not specified, use the image horizontal width.
+    filter : str, default 'ramp'. 
+        The filter used for reconstruction. Please see "radon_transform" in skimage.transform for more detail. Todo: reference to radon_transform
+    center : int, default 0. 
+        The rotation center in pixel during CT imaging. If 0, the horizontal center pixel in the image is used as the rotation center. Positive integer means the number of pixels to the right of the horizontal center of the image. Negative integer means the number of pixels to the left of the horizontal center of the image
+    degrees : int, {180,360}. 
+        Either a 180 degree CT or a 360 degree CT.
+    circle : bool, optional. 
+        Assume the reconstructed image is zero outside the inscribed circle. The default behavior (None) is equivalent to False.
+    Returns
+    -------
+    recon: 3d or 2d-array [(n_something),n_horizontal_positions,n_horizontal_positions].
+
+    """
+    from skimage.transform import iradon # The imported `iradon` here is a modified version
+    # if sinogram.ndim>=3, which means there is more than one sinogram. Iterate them all.
+    # The last two dimension should be the sinogram array.
+    if sinogram.ndim>=3:
+        recon = []
+        for i in range(sinogram.shape[0]):
+            recon.append(skimage_recon(sinogram[i],pixel_size=pixel_size,
+                                       output_size=output_size,filter=filter,center=center,
+                                       circle=circle))
+        recon = np.array(recon)
+        return recon
+    # when sinogram.ndim==2, do the reconstruction.
+    print('(skimage_recon) Started one CT reconstruction...',end='')
+    n_proj = sinogram.shape[0]
+    if not output_size: # If Output_size not specified, use the image horizontal width
+        output_size=sinogram.shape[1]
+    sinogram = sinogram.transpose(1,0) # transpose row and column to meet the order in skimage.transform.
+    theta = np.linspace(0,degrees,n_proj) # make the angles of projections from 0 to 180 degree
+    recon = iradon(sinogram,theta=theta,output_size=output_size,filter=filter,
+                   center_drift=center,circle=circle)
+    # correct result with pixel size (cm).
+    recon = recon/pixel_size
+    print('...Finished')
+
+    return recon
+
+
+def auto_center(data):
+    """
+    Use this function to auto locate the rotation center of CT reconstruction imaging.
+    Parameters
+    ----------
+    data : 2-d array
+        Dimension[0] refers to projections, and dimension[1] refers to positions in one projection.
+    Returns
+    -------
+    drift : int 
+        The relative pixel distance between the detected rotation center and the middle of the x-axis in the image. Negative value means rotation center is on the left side of the center of the image, and positive value means the opposite.
+    """
+    areas=[]
+    center = round(data.shape[1]/2)
+    drifts = np.arange(-center+1,center) # center is also the radius
+    for d in drifts:
+        if d <= 0:
+            a1 = data[0]
+            a2 = np.append(data[-1,2*d-1:0:-1],data[-1,2*d-1:])
+        else:
+            a1 = data[0]
+            a2 = np.append(data[-1,0:2*d],data[-1,:2*d-1:-1])
+    #     print(a1.shape,a2.shape,d)
+        a = np.vstack((a1,a2)).min(axis=0)
+    #     print(d,a.shape)
+        area = (a-a.min()).sum()
+        areas.append(area)
+    drift = drifts[np.array(areas).argmax()]
+    return(drift)
+
+
 def rho_in_ct(recon,names=None,center=[],width=0.0,save_path=''):
     """
     Calculate the average $\rho$ value in the target area in input recon image. If *center* and *width*
     are provided, target area is the wanted area. If not provided, this function will find the brightest
     area and calculate the average $\rho$ in it (actually only a square in the bright area)
-    :param recon:Numpy array. Number of dimension >=2. If ndim==2,
-    :param names: As reference for multi recon images, for the convenience of making plot labels.
-    :param center: The center [x,y] pixel location of the square area to be calculated.
-                   It can be either one center location [x,y], or a sequence of [x,y]s.
-    :param width: The width of the square area to be calculated.
-    :return: array_like, dtype=float. $\rho$ values in auto located bright areas or designated areas.
+    Parameters
+    ----------
+    recon : n-dimension (n>=2) array [..,nx,nx]
+        The last two dimensions form one image.
+    names : list of strings, optional, default `None`. 
+        If you want to label the calculated area with a name, pass in the list of names.
+    center : 2-element list of `int`, or list of 2-element lists, Optional. 
+        The center [x,y] pixel location of the square area to be calculated. It can be either one center location [x,y], or a sequence of [x,y]s. If this is specified, \rhoρ will be calculated for these locations.
+    width: float, optional. 
+        Use width to define edge length of the square area around the center locations for \rhoρ calculation.
+    save_path: string, optional, default ''. 
+        If a save_path is specified, recon-images marked with concentrations will be saved in the save_path.
+    Returns
+    -------
+    np.array(mean_rhos): float array
+        ρ values (mg/cm^3) in auto located bright areas or specified areas.
     """
 
     # If more than 1 recon, use RECURSION to go through all of them.
     # The last two dimensions should be the recon image array
     if recon.ndim >= 3:
         if recon.ndim==3 and names and len(names)>1:
-            # when there are more than one material, and there are no more than 3 dimensions,
+            # when there are more than one material, and there are 3 dimensions,
             # the 1st dimension represents the materials. Use the names as the reference for
             # making plots.
             mean_rho=[]
@@ -927,7 +1038,7 @@ def rho_in_ct(recon,names=None,center=[],width=0.0,save_path=''):
     plt.figure(figsize=(9,9))
     plt.imshow(recon*1000, cmap='gray_r')
     plt.colorbar().set_label('$mg/cm^3$',rotation=0,position=(1,1),labelpad=-5)
-    mean_rho=[]
+    mean_rhos=[]
     for i in range(center.shape[0]):
         y0 = center[i][1]; x0 = center[i][0]
         width = round(width)
@@ -935,32 +1046,32 @@ def rho_in_ct(recon,names=None,center=[],width=0.0,save_path=''):
         x2 = int(x0 + 0.5 * width);
         y1 = int(y0 - 0.5 * width);
         y2 = int(y0 + 0.5 * width)
-        mean_rho.append((recon[y1:y2, x1:x2].mean()*1000).round(2)) # change the unit to mg/cm^3
+        mean_rhos.append((recon[y1:y2, x1:x2].mean()*1000).round(2)) # change the unit to mg/cm^3
         draw_square([y0,x0], width, color='b')
 
     if save_path=='':
         save_path = choose_path('Please select directory to save reconstruction images:')
-        if save_path =='':
+        if save_path =='': # No path is selected, just show the result and return.
             print('(rho_in_ct) Average density in the square(s) is:\n'
-                  '          ', mean_rho, 'mg/cm^3')
-            return np.array(mean_rho)
+                  '          ', mean_rhos, 'mg/cm^3')
+            return np.array(mean_rhos)
 
     save_path = str(save_path)
     figures = fnmatch.filter(os.listdir(save_path),'*.png')
     n_fig = len(figures)
     if names: # if we know the name of the material for the CT recon
-        mean_molar_concentration = 1000 * np.array(mean_rho)/mphy.molar_mass(names) #mM
+        mean_molar_concentration = 1000 * np.array(mean_rhos)/mp.molar_mass(names) #mM
         plt.title('Concentration of ' + str(names))
         plt.savefig(save_path + str(names) + '.png')
 
         print('(rho_in_ct) Average density of '+str(names)+' in the square(s) is:\n'
-          '          ', mean_rho,'mg/cm^3, Or',mean_molar_concentration.round(2),'mM.')
+          '          ', mean_rhos,'mg/cm^3, Or',mean_molar_concentration.round(2),'mM.')
     else:
         plt.savefig(save_path  + str(n_fig) + '.png')
         print('(rho_in_ct) Average density in the square(s) is:\n'
-          '          ', mean_rho,'mg/cm^3')
+          '          ', mean_rhos,'mg/cm^3')
 
-    return np.array(mean_rho)
+    return np.array(mean_rhos)
 
 
 def calculate_distance(path, x_location, proj, smooth_width=20):
@@ -989,30 +1100,4 @@ def calculate_distance(path, x_location, proj, smooth_width=20):
 
     mut = np.median(mut[:,x_location-round(smooth_width/2):x_location+round(smooth_width/2)],axis=1)
 
-
-def auto_center(data):
-    """
-    Use this to auto locate the rotation center for CT reconstruction.
-    'data' should be a 2-d array(axis[0] refers to projections, axis[1] refers to positions in one projection.)
-    :return 'drift' is the relative pixel location between the detected rotation center and the center
-            of the x-axis in the image. Negative value means rotation center is on the left side of the
-            center of the image, and positive value means the opposite.
-    """
-    areas=[]
-    center = round(data.shape[1]/2)
-    drifts = np.arange(-center+1,center) # center is also the radius
-    for d in drifts:
-        if d<=0:
-            a1 = data[0]
-            a2 = np.append(data[-1,2*d-1:0:-1],data[-1,2*d-1:])
-        else:
-            a1 = data[0]
-            a2 = np.append(data[-1,0:2*d],data[-1,:2*d-1:-1])
-    #     print(a1.shape,a2.shape,d)
-        a = np.vstack((a1,a2)).min(axis=0)
-    #     print(d,a.shape)
-        area = (a-a.min()).sum()
-        areas.append(area)
-    drift = drifts[np.array(areas).argmax()]
-    return(drift)
 

@@ -9,7 +9,27 @@ from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+def plot(x):
+    plt.figure()
+    plt.plot(x)
+
+
+def imshow(x):
+    plt.figure()
+    plt.imshow(x)
+
+
 def choose_path(title = 'Please select data directory:'):
+    """Pop-up a dialog window (using `tkinter` package) to select the needed folder, and return the path as a `string`.
+    Parameters
+    ----------
+    None
+    Returns
+    -------
+    path : str
+        Path to the selected **folder**
+    """
     root = tkinter.Tk()
     root.withdraw()
     path = filedialog.askdirectory(title=title)
@@ -17,6 +37,15 @@ def choose_path(title = 'Please select data directory:'):
 
 
 def choose_file():
+    """Pop-up a dialog window (using `tkinter` package) to select the needed file, and return the path as a `string`.
+    Parameters
+    ----------
+    None
+    Returns
+    -------
+    file : str
+        Path to the selected **file**.
+    """
     root = tkinter.Tk()
     root.withdraw()
     file = filedialog.askopenfilename(title='Please select file')
@@ -24,17 +53,19 @@ def choose_file():
 
 
 def file_search(path,filter='*'):
-    '''
-
-    :param path: pathlib object. Search files in this path.  fnmatch uses strings as path names.
-                pathlib object needs to be converted to string first.
-    :param filter: change the pattern of filter to match the wanted files.For example, to find'flat0.tif'..
-                    'flatX.tif', use `filter = '*.tif'`
-    :return: List of paths to files in pathlib format
+    '''This function searchs for files match provided filter in provided folder, and returns the absolute path to these files with a list of `pathlib.Path` objects.
+    Parameters
+    ----------
+    - path : pathlib object or str
+        Search files in this folder
+    - filter : str
+        Pattern for `fnmatch.filter` to look for target files. Default '*' returns all files regardless of the file type.
+    Returns
+    -------
+    files : List of `pathlib` objects to files in pathlib format
     '''
     pathP = Path(path) # making sure it is pathlib class object, and use it later.
-    # path_str = str(path) # use path in form of String in the following line
-    files = fnmatch.filter(os.listdir(pathP),filter)
+    files = fnmatch.filter(os.listdir(pathP),filter) # find files that matches the filter
     if len(files)==0:
         print('------------------------'
               '\nWarning: No files found\n'
@@ -47,6 +78,17 @@ def file_search(path,filter='*'):
 
 
 def save_object(obj, fname):
+    """This function is used for saving multi-level class object. `pickle` by itself cannot save class object. `class_to_dict` function is called to convert **Class object** to nested **dictionary**. 
+    Parameters
+    ----------
+    obj : class object. 
+        Class object after data analysis.
+    fname : str
+        File name to save the class object.
+    Returns
+    -------
+    None
+    """
     fname = str(fname) # In case fname is an pathlib class, convert to string
     # print(fname)
     with open(fname, "wb") as output:
@@ -55,11 +97,36 @@ def save_object(obj, fname):
     return
 
 
-def load_object(fname=''):
+def class_to_dict(obj):
+    """Convert class object to dictionary with the same structure. 
+
+    If the child of the parent class is still a class object, it will be converted to dictionary as well until there is no class object.
+    The limit of this function is that, if there are class objects hide in non-class object, this function is not going to dig them out and do the convertion.
+    Parameters
+    ----------
+    obj : Be careful. This function modifies the variable passed in. Please make sure to use `copy.deepcopy()` before sending the object in to avoid messing up the original object.
+    Returns
+    -------
+    obj : Nested dictionary
     """
-    Accepted file formats are ".pkl" and image files
-    :param fname:
-    :return:
+    try:
+        obj = obj.__dict__
+        for key, value in obj.items():
+            obj[key] = class_to_dict(value)
+        return obj
+    except:
+        return obj    
+
+
+def load_object(fname=''):
+    """This function is used for loading in '.pkl' file or image file for analysis.
+    Parameters
+    ----------
+    fname : str, default ''
+        The absolute path to the saved 'pickle' file you want to load for analysis.
+    Returns
+    -------
+    obj : class object or image arrays 
     """
     if fname=='': # if fname is not assigned, pop up a window to pick file.
         fname = choose_file()
@@ -74,56 +141,16 @@ def load_object(fname=''):
     return obj
 
 
-def draw_square(center_yx, width, color='k'):
-    """
-    Use the center location and width in pixel to draw a square on EXISTING plot
-    :param center_yx: [y0,x0].
-    :param width: width of the square, unit 1.
-    :param color: choose the color for square edge.
-    :return: Returns nothing. But use plt.show() after this function if nothing was shown.
-    """
-    import matplotlib.pyplot as plt
-    x0 = center_yx[1]
-    y0 = center_yx[0]
-    plt.plot([x0 - 0.5 * width, x0 + 0.5 * width], [y0 - 0.5 * width, y0 - 0.5 * width], color=color)
-    plt.plot([x0 - 0.5 * width, x0 + 0.5 * width], [y0 + 0.5 * width, y0 + 0.5 * width], color=color)
-    plt.plot([x0 - 0.5 * width, x0 - 0.5 * width], [y0 - 0.5 * width, y0 + 0.5 * width], color=color)
-    plt.plot([x0 + 0.5 * width, x0 + 0.5 * width], [y0 - 0.5 * width, y0 + 0.5 * width], color=color)
-
-    return
-
-
-def plot(x):
-    plt.figure()
-    plt.plot(x)
-
-
-def imshow(x):
-    plt.figure()
-    plt.imshow(x)
-
-
-def class_to_dict(obj):
-    """
-    Convert class object to dictionary. It does the conversion for all nested child class objects as well.
-    :param obj: The original input will be modified. So make sure use copy.deepcopy() before sending the object
-                in and avoid using the original object.
-    :return: Nested dictionary.
-    """
-    try:
-        obj = obj.__dict__
-        for key, value in obj.items():
-            obj[key] = class_to_dict(value)
-        return obj
-    except:
-        return obj
-
-
 def dict_to_class(adict):
-    """
-    Convert dictionary to object.
-    :param dict:
-    :return:
+    """This function is used for reloading previously saved '.pkl' file to class object for the convenience of analysis. It is called by `load_object`.
+    Parameters
+    ----------
+    adict : dict
+        Usually a nested dictionary previously saved to store results after data processing.
+    Returns
+    -------
+    Func(adict) : class object
+        class object with the same structure of the input class object
     """
     class Func(object):
         def __init__(self, d):
@@ -137,15 +164,23 @@ def dict_to_class(adict):
 
 
 def save_result(save_path, result, args='', values=''):
-    """
-    This function is used to save result generated in nei(). It save all the results in
-    .pkl file first, then save image files for the sinogram-like rho_t arrays. If reconstructions
-    are contained in the result object, save these as images as well.
-    :param save_path:
-    :param result:
-    :param args:
-    :param values:
-    :return:
+    """This function is used to save result generated in `nei()`. 
+    
+    It saves all the results in '.pkl' file first, then save image files for the sinogram-like rho_t arrays. 
+    If reconstructions are contained in the result object, save these as images as well.
+    Parameters
+    ----------
+    save_path : `pathlib` object or str
+        Absolute path to the directory where you want to save the results.
+    result : class object
+        Contains all the result.
+    args : list of str, default ''
+        A list of names of all the arguments in the `nei()` function.
+    values : list of various types of data
+        A list of values of all the arguments in the `nei()` function. 
+    Returns
+    -------
+    None
     """
     # save the parameter setup used when running the program.
     save_path= Path(save_path)# making sure save_path is 'pathlib' class object
@@ -153,26 +188,39 @@ def save_result(save_path, result, args='', values=''):
     with open(log_file, 'w') as file:
         for i in args:
             file.write("    %s = %s\n" % (i, values[i]))
-        # file.write(result.beam_parameters.setup.__dict__)
 
+    if result==None:
+        return
     # save a `.pkl` file containing all the result.
     # save 'rho_t' into images.
-    # save 'recon' into images if there is reconstruction result.
-    pkl_file = 'save.pkl'
-    save_object(result, save_path/pkl_file)
-    if result.rho_t.ndim == 3:
-        for i in range(result.rho_t.shape[0]):
-            imageio.imwrite(save_path/('rho_t' + str(i) + '.png'), result.rho_t[i].astype(np.uint8))
-            if not isinstance(result.recons, str):
-                imageio.imsave(save_path/('recon' + str(i) + '.png'), result.recons[i].astype(np.uint8))
-    return
+    # save 'recon' into images if there is 'recon'.
+    else: 
+        pkl_file = 'save.pkl'
+        save_object(result, save_path/pkl_file)
+        if result.rho_t.ndim == 3:
+            for i in range(result.rho_t.shape[0]):
+                imageio.imwrite(save_path/('rho_t' + str(i) + '.png'), result.rho_t[i].astype(np.uint8))
+                if not isinstance(result.recons, str):
+                    imageio.imsave(save_path/('recon' + str(i) + '.png'), result.recons[i].astype(np.uint8))
+        return
 
 
 def save_recon(save_path, recon):
+    """This function is made for the GUI reconstruction function to save reconstruction data and make images.
+
+    A folder named with current date, and subfolders with current time will be generated automatically for saving these results.
+    Parameters
+    ----------
+    save_path : pathlib object or str
+        Absolute path to the directory where you want to save the results.
+    recon : array
+        The result from CT reconstruction process.
+    Returns
+    -------
+    None
+
     """
-    This save function is used to save reconstruction data and make images. Needed in the GUI reconstruction part.
-    A folder named with current date, and subfolders with time will be generated automatically for saving.
-    """
+    
     path = Path(save_path)
     dt = str(datetime.today())[0:19].replace(':', '-')
     pkl_file = dt + '_recon.pkl'
@@ -183,8 +231,31 @@ def save_recon(save_path, recon):
 
     if recon.ndim == 2:
         imageio.imwrite(path /(dt + '_recon' + '.png'), recon)
-        # plt.figure()
 
     return
 
 
+def draw_square(center_yx, width, color='k'):
+    """Use the center location and width in pixel to draw a square on EXISTING figure. 
+    
+    This function is used only for the purpose of visualization for CT reconstruction image.
+    Parameters
+    ----------
+    center_yx : list or tuple of 2 elements
+        [vertical_position(y0), horizontal_position(x0)]. The pixel location for the center of the square you want to draw.
+    width : int, positive
+        The edge length for the square you want to draw.
+    color : str, optional, default 'k'
+        The color code used to draw the square. Check out `matplotlib` online for more details.
+    Returns
+    -------
+    None
+    """
+    x0 = center_yx[1]
+    y0 = center_yx[0]
+    plt.plot([x0 - 0.5 * width, x0 + 0.5 * width], [y0 - 0.5 * width, y0 - 0.5 * width], color=color)
+    plt.plot([x0 - 0.5 * width, x0 + 0.5 * width], [y0 + 0.5 * width, y0 + 0.5 * width], color=color)
+    plt.plot([x0 - 0.5 * width, x0 - 0.5 * width], [y0 - 0.5 * width, y0 + 0.5 * width], color=color)
+    plt.plot([x0 + 0.5 * width, x0 + 0.5 * width], [y0 - 0.5 * width, y0 + 0.5 * width], color=color)
+
+    return
