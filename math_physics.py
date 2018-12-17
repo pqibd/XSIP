@@ -80,7 +80,7 @@ class Constants:
     # This is usually used as the internal standard for silicon
 
 
-def fwhm(y,Verbose=False):
+def fwhm(x,y,Verbose=False):
     '''
     :param x:
     :param y:
@@ -89,7 +89,9 @@ def fwhm(y,Verbose=False):
     '''
     ## If max is too close to either end, raise error
     ind_max = y.argmax()
+
     if ind_max<=2 or ind_max>=len(y)-2:
+        print('(fwhm)ind_max<=2 or ind_max>=len(y)-2')
         return(0,0,0)
     half_max  = y.max()/2
     ind_max   = y.argmax()
@@ -97,10 +99,12 @@ def fwhm(y,Verbose=False):
     left      = low_index[low_index<ind_max] # index of points on the left side out of 'fwhm'
     right     = low_index[low_index>ind_max] # index of pintts on the right side out of 'fwhm'
     if len(left)*len(right)==0:
+        print('(fwhm)len(left)*len(right)')
         return(0,0,0)
-    left_fwhm = left[-1] # The index of the point at the very right of the 'left', so that it is also the left limit of 'fwhm'
-    right_fwhm= right[0] # The index of the point at the very left of the 'right', so that it is also the right limit of 'fwhm'
+    left_fwhm = x[left[-1]] # The index of the point at the very right of the 'left', so that it is also the left limit of 'fwhm'
+    right_fwhm= x[right[0]] # The index of the point at the very left of the 'right', so that it is also the right limit of 'fwhm'
     fwhm      = right_fwhm-left_fwhm # Width
+    print(fwhm)
 
     # show the plot if Verbose==True
     if Verbose:
@@ -110,7 +114,7 @@ def fwhm(y,Verbose=False):
         plt.plot([right_fwhm,right_fwhm],[0,y.max()],color='y')
         plt.title('FWHM')
         plt.show()
-    return fwhm,left_fwhm,right_fwhm
+    return(fwhm,left_fwhm,right_fwhm)
 
 
 def gaussfit(x, y, *estimate):
