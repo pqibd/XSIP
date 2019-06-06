@@ -1,13 +1,16 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
+# from PIL import Image
+import PIL
 import time
 from scipy.ndimage import median_filter
 from scipy.ndimage import gaussian_filter
 from scipy.interpolate import interp1d
 import math_physics as mp
 from toolkit import *
+from tkinter import *
+from pathlib import Path
 
 
 # __all__ = ['NeiSubDir','file_search',
@@ -58,17 +61,17 @@ class NeiSubDir:
                 self.EdgeBAfter = path /'EdgeABefore'
 
 
-def nei_get_arrangement(path,setup_type='FILE'):
+def nei_get_arrangement(path,save_path,arrangement_type='file'):
     """Reads in the arrangement for the experiment from the 'arrangement.dat' file. 
 
     Parameters
     ----------
     path : str
-        Path to the folder which contains one set of imaging data. Usually in this folder, there are subfolders named as 'DarkBefore', 'FlatBefore', 'EdgeABefore', 'Tomo', 'arrangement.dat'.
+        Path to the folder which contains the whole set of imaging data. Usually in this folder, there are subfolders and files named as 'DarkBefore', 'FlatBefore', 'EdgeABefore', 'Tomo', 'arrangement.dat'.
     setup_type : str, optional,{'File','Manual'}. 
-    Defines the way to input system arrangements.
-        'File'. Find 'arrangement.dat' in the given path for arrangement. If 'arrangement.dat' is not found, it will automatically switch to 'Manual' mode.
-        'Manual'. Popup a window to manually input arrangement. Todo.
+        Defines the way to input system arrangements.
+            'file'. Find 'arrangement.dat' in the given path for arrangement. If 'arrangement.dat' is not found, it will automatically switch to 'Manual' mode.
+            'manual'. Popup a window to manually input arrangement. Todo.
     Returns
     -------
     arrangement : Class
@@ -77,7 +80,9 @@ def nei_get_arrangement(path,setup_type='FILE'):
     class get_arrangement:
         def __init__(self, path):
             filename = path/'arrangement.dat'
-            data = pd.read_csv(filename, index_col=0, header=None, sep=r',\s+', engine='python')
+            data = pd.read_csv(filename, index_col=0, header=None, sep=r',\s*', engine='python')
+            # print(data.info())
+            # print(data)
             data=data[1] # series
             for i in range(len(data)):  # remove the ' sign in some strings
                 data[i] = data[i].replace("'", "")
@@ -106,12 +111,256 @@ def nei_get_arrangement(path,setup_type='FILE'):
                 self.phperapu = float(data['det_phperapu'])
                 self.disp_x_demag = float(data['det_disp_x_demag'])
                 self.pct_max = float(data['det_pct_max'])
-    try:
-        arrangement = get_arrangement(path)
-    except:
-        print('(nei_get_arrangement)The "arrangement.dat" file either does not exist in the specified directory, or has error in it')
-        #pop up a tkinter window for the 'arrangement' settings
-        
+
+    ################# Window for getting arrangement manually ##############
+    class gui_get_arrangement:
+        """docstring"""
+
+        def __init__(self, save_path=''):
+            #################### create some ttk styles     ######################
+            # s = ttk.Style()
+            # s.configure("Small.TNotebook.Tab", padding=[25,5])
+            # # s.configure("BW.TNotebook.Tab", padding=[157,5])
+            # # s.configure('Kim.TNotebook.Tab', padding=[25,5])
+
+            #################### Start window   ##################################
+            self.save_path = save_path
+            self.window = Tk()
+            # window.minsize(width=800, height=500)
+            self.window.title("SYSTEM & DETECTOR ARRANGEMENTS")
+            master = Frame(self.window, width=300)
+            # master = ttk.Notebook(window)
+            # master.pack(expand=1, fill="both")
+            master.pack()
+            ######################################################################
+
+            #################### frame1 for system arrangement ###################
+            # Main frame
+            # frame1 = LabelFrame(master,width=500, text = 'SYSTEM',bd=4, relief=GROOVE,labelanchor=N)
+            Label(master, text='SYSTEM').pack(pady=5)
+
+            frame1 = Frame(master, width=700)
+            # frame1.grid(row=0, column=0, sticky=NS)
+            frame1.pack(pady=5)
+            # Label(frame1, text='').grid()
+
+            # frame for the ARRANGEMENT NAME.
+            frame1_1 = Frame(frame1)
+            frame1_1.grid(sticky=W)
+            Label(frame1_1, text='NAME', width=20).grid(row=0, sticky=W)
+
+            self.aName = StringVar()
+            self.aName.set('Default')
+            self.entryName = Entry(frame1_1, textvariable=self.aName)
+            self.entryName.grid(row=0, column=1)
+            # self.aName.set('Default')
+
+            # frame for DIFFRACTION PLANE
+            frame1_2 = Frame(frame1)
+            frame1_2.grid(sticky=W)
+            Label(frame1_2, text='DIFFRACTION PLANE', width=20).grid(row=0, sticky=W)
+
+            self.diffPlane = StringVar()
+            self.rbtVerti = Radiobutton(frame1_2, text='Vertical', variable=self.diffPlane, value='Vertical')
+            self.rbtVerti.grid(row=0, column=1)
+
+            self.rbtHoriz = Radiobutton(frame1_2, text='Horizontal', variable=self.diffPlane, value='Horizontal')
+            self.rbtHoriz.grid(row=0, column=2)
+
+            self.diffPlane.set('Vertical')
+
+            # frame for ASYMMETRY ANGLE
+            frame1_3 = Frame(frame1)
+            frame1_3.grid(sticky=W)
+            Label(frame1_3, text='ASYMMETRY ANGLE', width=20).grid(row=0, sticky=W)
+
+            self.chi = DoubleVar()
+            self.entryChi = Entry(frame1_3, width=12, textvariable=self.chi).grid(row=0, column=1)
+            self.chi.set(0.0)
+
+            Label(frame1_3, text='Degree').grid(row=0, column=2)
+
+            # frame for H,K,L
+            frame1_4 = Frame(frame1)
+            frame1_4.grid(sticky=W)
+            Label(frame1_4, text='H,K,L', width=20).grid(row=0, sticky=W)
+
+            self.h = IntVar();
+            self.k = IntVar();
+            self.l = IntVar()
+            Label(frame1_4, width=3, text='H').grid(row=0, column=1)
+            self.entryH = Entry(frame1_4, width=3, textvariable=self.h).grid(row=0, column=2)
+            self.h.set(1)
+
+            Label(frame1_4, width=3, text='K').grid(row=0, column=3)
+            self.entryK = Entry(frame1_4, width=3, textvariable=self.k).grid(row=0, column=4)
+            self.k.set(1)
+
+            Label(frame1_4, width=3, text='L').grid(row=0, column=5)
+            self.entryL = Entry(frame1_4, width=3, textvariable=self.l).grid(row=0, column=6)
+            self.l.set(1)
+
+            # frame for K-EDGE
+            frame1_5 = Frame(frame1)
+            frame1_5.grid(sticky=W)
+            Label(frame1_5, text='K-EDGE', width=20).grid(row=0, sticky=W)
+
+            self.kEdge = DoubleVar()
+            self.entryEdge = Entry(frame1_5, width=12, textvariable=self.kEdge).grid(row=0, column=1)
+            self.kEdge.set(0.0)
+
+            Label(frame1_5, text='keV').grid(row=0, column=2)
+
+            # frame for ENERGY RANGE
+            frame1_6 = Frame(frame1)
+            frame1_6.grid(sticky=W)
+            Label(frame1_6, text='ENERGY RANGE', width=20).grid(row=0, sticky=W)
+
+            Label(frame1_6, text='LOW', width=5).grid(row=0, column=1)
+            self.lowE = DoubleVar()
+            self.entryLowE = Entry(frame1_6, width=5, textvariable=self.lowE).grid(row=0, column=2)
+            self.lowE.set(0.0)
+
+            Label(frame1_6, text='HIGH', width=5).grid(row=0, column=3)
+            self.highE = DoubleVar()
+            self.entryHighE = Entry(frame1_6, width=5, textvariable=self.highE).grid(row=0, column=4)
+            self.highE.set(0.0)
+
+            Label(frame1_6, text='keV').grid(row=0, column=5)
+
+            # frame for DISTANCE between FOCUS and DETECTOR
+            frame1_7 = Frame(frame1)
+            frame1_7.grid(sticky=W)
+            Label(frame1_7, text='FOCUS to DETECTOR', width=20).grid(row=0, sticky=W)
+
+            self.f2d = DoubleVar()
+            self.entryf2d = Entry(frame1_7, width=12, textvariable=self.f2d).grid(row=0, column=1)
+            self.f2d.set(0.0)
+
+            Label(frame1_7, text='mm').grid(row=0, column=2)
+
+            separator = Frame(master, height=2, bd=1, relief=SUNKEN)
+            separator.pack(fill=X, padx=5, pady=5)
+
+            #################### frame2 for detector arrangement ###################
+            # Main frame
+            # frame2 = LabelFrame(master, width=50, text='DETECTOR', bd=4, relief=GROOVE, labelanchor=N)
+            Label(master, text='DETECTOR').pack()
+
+            frame2 = Frame(master, width=800)
+            # frame2.grid(row=1, column=0, sticky=NS)
+            frame2.pack(pady=10)
+            # Label(frame2, text='').grid() #Make a blank line
+
+            # frame for DETECTOR TYPE
+            frame2_1 = Frame(frame2)
+            frame2_1.grid(sticky=W)
+            Label(frame2_1, text='TYPE', width=20).grid(row=0, sticky=W)
+
+            self.aType = StringVar()
+            self.entryType = Entry(frame2_1, textvariable=self.aType)
+            self.entryType.grid(row=0, column=1)
+            self.aType.set('Default')
+
+            # frame for PIXEL SIZE
+            # frame for DISTANCE between FOCUS and DETECTOR
+            frame2_2 = Frame(frame2)
+            frame2_2.grid(sticky=W)
+            Label(frame2_2, text='PIXEL SIZE', width=20).grid(row=0, sticky=W)
+
+            self.pixelSize = DoubleVar()
+            self.entryPixelSize = Entry(frame2_2, width=12, textvariable=self.pixelSize).grid(row=0, column=1)
+            self.kEdge.set(0.0)
+
+            Label(frame2_2, text='um').grid(row=0, column=2)
+
+            # frame for DETECTOR THRESHOLD
+            frame2_3 = Frame(frame2)
+            frame2_3.grid(sticky=W)
+            Label(frame2_3, text='THRESHOLD (%)', width=20).grid(row=0, sticky=W)
+
+            self.thres = DoubleVar()
+            self.entryThres = Entry(frame2_3, width=12, textvariable=self.thres).grid(row=0, column=1)
+            self.thres.set(50.0)
+
+            separator = Frame(master, height=2, bd=1, relief=SUNKEN)
+            separator.pack(fill=X, padx=5, pady=5)
+
+            ######################### get the values  ####################
+
+            # self.diffaction_plane = self.diffPlane.get()
+            # self.type = self.aName.get()
+            # self.chi_degrees = self.chi.get()
+            # self.hkl = [self.h.get(), self.k.get(), self.l.get()]
+            self.energy = self.kEdge.get()
+            # self.energy_range = [self.lowE.get(),self.highE.get()]
+            # self.dist_fd = self.f2d.get()
+
+            ######################### FRAME3 for others #######################
+            # Main frame
+            frame3 = Frame(master, bd=4)
+            frame3.pack(pady=10)
+            # frame3.grid(row=2, column=0, sticky=NS)
+            # TODO: frame for REMEMBER LAST SETTING
+
+            # TODO: frame for the CONFIRM button
+            btConfirm = Button(frame3, text='CONFIRM', command=self.confirm)
+            Button.config(btConfirm, font=('Helvetica', '11'))
+            btConfirm.grid(row=0, columnspan=3)
+            master.mainloop()
+
+        def confirm(self):
+            #     self.diffaction_plane = self.diffPlane
+            #     self.type = self.aName
+            #     self.chi_degrees = self.chi
+            #     self.hkl = [self.h, self.k, self.l]
+            #     self.energy = self.kEdge
+            #     self.energy_range = [self.lowE,self.highE]
+            #     self.dist_fd = self.f2d
+            #     # self.detector = self.detector(data)
+            aDict = {}
+
+            aDict['type'] = self.aName.get()
+            aDict['diffraction_plane'] = self.diffPlane.get()
+            aDict['chi_degrees'] = self.chi.get()
+            aDict['h'] = self.h.get()
+            aDict['k'] = self.k.get()
+            aDict['l'] = self.l.get()
+            aDict['energy'] = self.kEdge.get()
+            aDict['energy_range_low'] = self.lowE.get()
+            aDict['energy_range_high'] = self.highE.get()
+            aDict['dist_fd'] = self.f2d.get()
+            aDict['det_type'] = self.aType.get()
+            aDict['det_pixel'] = self.pixelSize.get()/1000
+            aDict['det_pct_max'] = self.thres.get()
+            # todo: Be careful. Some values for arrangement are set to zero, because it is not in the gui
+            aDict['det_flip'] = 0
+            aDict['det_phperapu'] = 0
+            aDict['det_disp_x_demag'] = 0
+
+            arrange_df = pd.DataFrame.from_dict(aDict, orient='index')
+            arrange_df.to_csv(Path(self.save_path) / 'arrangement.dat', header=False)
+            # print(arrange_df)
+            self.window.destroy()
+
+    ########################################################################
+
+    if arrangement_type == 'file':
+        try:
+            arrangement = get_arrangement(path)
+        except:
+            # window_for_get_arrangement
+            print('(nei_get_arrangement)The "arrangement.dat" file either does not exist in the specified directory, or has errors in it.\n'
+                  'Please input the system arrangement in the pop-up window.\n')
+            gui_get_arrangement(save_path=save_path)
+            arrangement = get_arrangement(save_path)
+    else:
+        # window for get arrangement
+        gui_get_arrangement(save_path=save_path)
+        arrangement = get_arrangement(save_path)
+        print(save_path)
+
+
     arrangement_parameters = {'diffaction_plane': ' DIFFRACTION PLANE:',
                               'type': ' TYPE:',
                               'chi_degrees': ' ASYMMETRY ANGLE (CHI):',
@@ -165,7 +414,7 @@ def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
     n_files = len(files)
     image_array = []
     for i in range(n_files):
-        image_array.append(np.array(Image.open(files[i])))
+        image_array.append(np.array(PIL.Image.open(files[i])))
     image_array = np.array(image_array)
     average = image_array.mean(axis=0)
     return(average)
@@ -197,6 +446,7 @@ def get_beam_files(path,After=False,Verbose=False,clip=False, flip=False):
         .origin_beam_files: Class object. Contains beam files without clipping.
 
     '''
+    # print(path)
     path = Path(path)
     sub_dir = NeiSubDir(path, After=False, EdgeB=False)
 
@@ -317,7 +567,7 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False):
     if n_tomo >= 200:
         print('|--------------------------------------------------|\n|', end='')
     for i in range(n_tomo):
-        tomo_data.append(np.array(Image.open(tomo_files[i])))
+        tomo_data.append(np.array(PIL.Image.open(tomo_files[i])))
         if n_tomo >= 200:
             print('>' * (counter % int(n_tomo / 50) == 0), end='')
         counter+=1
@@ -887,9 +1137,11 @@ def idl_recon(sinogram,pixel_size,center=0):
     if dimensions ==3:
         recon=[]
         for i in range(sinogram.shape[0]):
+            print('(idl_recon) Started one CT reconstruction...',end='')
             recon.append(IDL.normalized_fbp(sinogram[i],dx=center,pixel=pixel_size))
         recon = np.array(recon)
     elif dimensions==2:
+        print('(idl_recon) Started one CT reconstruction...',end='')
         recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel_size)
     else:
         raise Exception('The dimensions of input "sinogram" should be either 2 or 3.'

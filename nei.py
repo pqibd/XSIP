@@ -4,10 +4,13 @@ import re
 import inspect
 from datetime import datetime
 import copy
+import math_physics as mp
+import os
+os.chdir(os.path.dirname(mp.__file__)) # Set Current Working Directory to the spectral_KES module directory
 
 def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multislice=False,
         slice=0, n_proj=900, ct=False, side_width=0,
-        e_range=0,lowpass=False,use_torch=True,use_file=True,
+        e_range=0,lowpass=False,use_torch=True,use_file=True,arrangement_type='file',
         fix_vertical_motion=False,  reconstruction=None, ct_center=0, snr=False,
         save = True, clip=False, flip=False, fix_cross_over=False,width_factor=1.0,
          use_sm_data=False, use_measured_standard=False,
@@ -104,7 +107,7 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
         print ("    %s = %s" % (i, values[i]))
 
     #############  get system setup info from arrangement.dat file ##########
-    setup = nei_get_arrangement(data_path)
+    setup = nei_get_arrangement(data_path,save_path,arrangement_type=arrangement_type)
     detector = setup.detector
     # overwrite energy_range from arrangement file if needed
     if e_range != 0: setup.energy_range = e_range
@@ -211,16 +214,23 @@ def nei(materials='', data_path='',save_path='', algorithm='sKES_equation',multi
     print('\n(nei) Total running time for "nei":'
           '\n     ', round(time.clock() - start, 2), 'seconds')
     result = Result(names,beam_parameters, mu_rhos, mu_t, rho_t, snrs,recons,mean_rhos)
+
+    # (2019 Feb 15) Added the following line to free up some memory
+    del names, beam_parameters, mu_rhos, mu_t, rho_t, snrs,recons,mean_rhos
     
     print('\n(nei) Saving results...')
     if save:
         # Note: Use copy.deepcopy(). Because the save_object function would transform the
         # structure of the input object into the form of nested dictionary.
         save_result(save_path,copy.deepcopy(result),args,values)
+
+        # # # Note: do dict_to_object to transform the result back to class object (Added 2019 Feb 15)
+        # save_result(save_path,result,args,values)
+        # result = dict_to_class(result)
         print('      Results are saved at',str(save_path))
     else: # data will not be saved, but parameter settings will still be saved.
         save_result(save_path,None,args,values)
-        print('      Parameters are saved at',str(save_path))
+        print('      Program parameters are saved at',str(save_path))
 
     return result
 

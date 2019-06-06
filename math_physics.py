@@ -77,15 +77,31 @@ class Constants:
     c = C.c # speed of light. meter/s
     eV = C.eV # eV to Joer
     a0 = 5.4305  # Unit: Angstroms ##silicon crystal unit cell length at 300K.
-    # This is usually used as the internal standard for silicon
+                                                            ## This is usually used as the internal standard for silicon
 
 
 def fwhm(x,y,Verbose=False):
-    '''
-    :param x:
-    :param y:
-    :param Verbose:
-    :return:
+    '''Calculate the Full Width Half Maximum (FWHM) of the input `x` for index and `y` for value.
+    (0,0,0) will be returned if 'max_index' is too close to the side of the array, or if the left 
+    or right region out of 'FWHM' has length of 0.
+    Parameters
+    ----------
+    x : array
+        Index array. It could be the array index of `y`, or energy values as index for `y`.
+
+    y : array
+        Value array.
+
+    Verbose : bool, optional, default False
+        Whether to print some information or show some images/plots for inspection during the running of this function
+
+    Returns
+    -------
+
+    (fwhm, left_fwhm, right_fwhm) : tuple of float or tuple of int
+        fwhm : fwhm using `x` as the index
+        left_fwhm : the `x` value of the very **left** element in the `fwhm` region.
+        right_fwhm : the `x` value of the very **right** element in the `fwhm` region.
     '''
     ## If max is too close to either end, raise error
     ind_max = y.argmax()
@@ -97,7 +113,7 @@ def fwhm(x,y,Verbose=False):
     ind_max   = y.argmax()
     low_index = np.where(y<half_max)[0] # index of all points lower than 'half_max'
     left      = low_index[low_index<ind_max] # index of points on the left side out of 'fwhm'
-    right     = low_index[low_index>ind_max] # index of pintts on the right side out of 'fwhm'
+    right     = low_index[low_index>ind_max] # index of points on the right side out of 'fwhm'
     if len(left)*len(right)==0:
         print('(fwhm)len(left)*len(right)')
         return(0,0,0)
@@ -118,18 +134,32 @@ def fwhm(x,y,Verbose=False):
 
 
 def gaussfit(x, y, *estimate):
-    '''
+    '''Get the best fitted Gaussian curve for the input `x`(index) and `y`(value).
 
-    :param x:
-    :param y:
-    :param estimate:
-    :return:
+    Only 3 terms are used here for fitting the Gaussian function.
+    >In mathematics, a Gaussian function, often simply referred to as a Gaussian, is a function of the form:
+    $$f(x)=a\cdot e^{-{\frac {(x-b)^{2}}{2c^{2}}}}$$
+    >for arbitrary real constants a, b and non zero c. It is named after the mathematician Carl Friedrich Gauss. The graph of a Gaussian is a characteristic symmetric "bell curve" shape. The parameter a is the height of the curve's peak, b is the position of the center of the peak and c (the standard deviation, sometimes called the Gaussian RMS width) controls the width of the "bell".
+
+    Parameters
+    ----------
+    x : array
+        Index array.
+
+    y : array
+        Value array. 
+
+    Returns
+    -------
+    y_gauss : array
+        The best fitted Gaussian curve.
+
+    popt : list of float
+        The values of the 3 terms to define the fitted curve.
     '''
 
     def gauss_func(x, a0, a1, a2):  # ,a3=0,a4=0,a5=0):
-        # define the gaussian function
-        # z  = (x-a1)/a2
-        # ez = np.exp(-z**2/2.0) # Gaussian part
+        # define the gaussian function with 3 terms
         return a0 * np.exp(-(x - a1) ** 2 / (2 * a2 ** 2))  # +a3+a4*x+a5*x**2
 
     # Call the curve_fit, imported from scipy.optimize
@@ -142,17 +172,31 @@ def gaussfit(x, y, *estimate):
 
 
 def polyfit(x, y, degree):
-    '''
-    use the numpy.polyfit method, and directly returns the y_values for the fitted polynomial function
-    :param x:
-    :param y:
-    :param degree:
-    :return:
+    '''A wrapper of `numpy.polyfit` for least squares polynomial fit.
+    
+    `numpy.polyfit` returns a vector of coefficients p that minimises the squared error. This wrapper uses these coefficients and the input x-coordinates to produce the fitting polynomial curve. 
+    > Fit a polynomial p(x) = p[0] * x**deg + ... + p[deg] of degree deg to points (x, y).
+
+    Parameters
+    ---
+    x : array_like, shape(M,)
+        x-coordinates of the M sample points (x[i], y[i])
+
+    y : array_like, shape (M,) or (M, K)
+        y-coordinates of the sample points. Several data sets of sample points sharing the same x-coordinates can be fitted at once by passing in a 2D-array that contains one dataset per column.
+
+    degree : int
+        Degree of the fitting polynomial.
+
+    Returns
+    ---
+    y_poly : array, shape(M,) or (M, K)
+        y-coordinates of the fitting polynomial curve, with the same shape of parameter `y`.
     '''
     coef = np.polyfit(x, y, degree)
     p = np.poly1d(coef)
     y_poly = p(x)
-    return (y_poly)
+    return y_poly
 
 
 def element_info(element_name,no_whine=False):

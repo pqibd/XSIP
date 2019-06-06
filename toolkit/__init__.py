@@ -33,6 +33,8 @@ def choose_path(title = 'Please select data directory:'):
     root = tkinter.Tk()
     root.withdraw()
     path = filedialog.askdirectory(title=title)
+    root.destroy() # this command is very important. If not destroyed,
+                    # "tk" windows in the following code will be affected
     return path
 
 
