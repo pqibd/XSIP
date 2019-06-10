@@ -498,9 +498,13 @@ class NearEdgeImaging:
             for child_widget in self.frameCanvas.winfo_children():
                 child_widget.destroy()
             # display the self.figure on canvas
+            # print('1')
             figure = FigureCanvasTkAgg(self.figure, master=self.frameCanvas)
-            figure.draw()
+            # print('2')
+            # figure.draw() # this line was commented out for fixing an issue, which is when a sinogram should be dispalyed, the whole program would quit. Maybe caused by some updated modules.
+            # print('3')
             figure.get_tk_widget().grid()
+            # print('selectSino')
 
     def runRecon(self):
 
@@ -538,7 +542,7 @@ class NearEdgeImaging:
                     a.imshow(recon, cmap='gray_r')
                     # display the figure_recon on canvas
                     figure = FigureCanvasTkAgg(figure_recon, master=self.windowRecon)
-                    figure.draw()
+                    # figure.draw()
                     figure.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
                     # display toolbar
                     toolbar = NavigationToolbar2Tk(figure, self.windowRecon)
