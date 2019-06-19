@@ -17,6 +17,123 @@ from pathlib import Path
 #            'nei_get_arrangement','read_average_tifs','get_tomo_files','nei_determine_murhos',
 #            'get_beam_files','nei','beam_near_edge_imaging', 'nei_beam_parameters',]
 
+def define_materials(materials_filename):
+    from pathlib2 import Path
+    import re
+
+    def read_default():
+        with open(Path('MU\materials\default.txt'),'r') as file:
+            content = file.read().upper()
+        materials = re.split('\s*\n\s*',content)
+        return materials
+
+    def read_materials_file(filename):
+        with open(Path('MU\\materials\\' + filename + '.txt'), 'r') as file:
+            content = file.read().upper()
+        materials = re.split('\s*\n\s*', content)
+        return materials
+
+    def input_materials():
+        materials = input('\nPlease input the names of the materials to investigate.\n'
+                          'For example: K2SeO4 Se-Meth, Water\n'
+                          'Or press Enter to skip\n')
+        materials = re.findall(r"[\w'-]+", materials)
+        return materials
+
+    def write_materials_file(materials, filename):
+        filename = filename.lower()
+        with open(Path('MU\\materials\\' + filename + '.txt'), 'w') as file:
+            if type(materials) == 'str':
+                file.write(materials)
+            else:
+                file.write('\n'.join(materials))
+        return
+
+    class gui_get_materials:
+        """docstring"""
+
+        def __init__(self, save_path=''):
+            #################### create some ttk styles     ######################
+            # s = ttk.Style()
+            # s.configure("Small.TNotebook.Tab", padding=[25,5])
+            # # s.configure("BW.TNotebook.Tab", padding=[157,5])
+            # # s.configure('Kim.TNotebook.Tab', padding=[25,5])
+            #################### Start window   ##################################
+            self.save_path = save_path
+            # self.window = Tk()
+            self.window=Tk()
+            self.window.minsize(width=400, height=300)
+            self.window.title("Input the materials")
+            master = Frame(self.window, width=300)
+            # master = ttk.Notebook(window)
+            # master.pack(expand=1, fill="both")
+            master.pack()
+            ######################################################################
+            #################### frame input field ###################
+            # Main frame
+            Label(master, text='CHOOSE FROM EXISTING MATERIALS FILE').pack()
+            frame0 = Frame(master,bd=4)
+            frame0.pack(pady=5)
+            btSelectFile = Button(frame0,text='Browse', command=self.select)
+            btSelectFile.grid(row=0,columnspan=2)
+
+            Label(master, text='MATERIALS.\n(Hit ENTER on the keyboard after every material)').pack()
+            frame1 = Frame(master, bd=4)
+            frame1.pack(pady=5)
+            sbText = Scrollbar(frame1)
+            self.textMaterials = Text(frame1, height=9, width=30, yscrollcommand=sbText.set,
+                                      relief=SUNKEN)
+            self.textMaterials.grid(row=0, column=0)
+            sbText.config(command=self.textMaterials.yview)
+            sbText.grid(row=0, column=1, sticky=NS)
+            ######################### Frame2 for materials file name ##########
+            Label(master, text='MATERIALS ALIAS').pack(pady=5)
+            frame2 = Frame(master, bd=4)
+            frame2.pack(pady=5)
+            self.filename = Entry(frame2, width=30)
+            self.filename.pack()
+            ######################### FRAME3 for others #######################
+            # Main frame
+            frame3 = Frame(master, bd=4)
+            frame3.pack(pady=10)
+            # frame3.grid(row=2, column=0, sticky=NS)
+            # TODO: frame for REMEMBER LAST SETTING
+            btConfirm = Button(frame3, text='CONFIRM', command=self.confirm)
+            Button.config(btConfirm, font=('Helvetica', '11'))
+            btConfirm.grid(row=0, columnspan=3)
+            master.mainloop()
+        def select(self):
+            filename = filedialog.askopenfilename(title='Please select file')
+            import os
+            filename = os.path.basename(filename).split('.')[0] #get the filename from the full path
+            materials = read_materials_file(filename)
+            write_materials_file(materials, 'last')
+            self.window.destroy()
+
+        def confirm(self):
+            materials = self.textMaterials.get('1.0',
+                                               'end-1c')  # https://stackoverflow.com/questions/14824163/how-to-get-the-input-from-the-tkinter-text-box-widget
+            materials = re.split('\s*\n\s*', materials)
+            filename = self.filename.get()
+            write_materials_file(materials, filename)
+            write_materials_file(materials, filename='last')
+            self.window.destroy()
+    if materials_filename == '':
+        gui_get_materials()
+        materials = read_materials_file('last')
+    else:
+        try:
+            materials = read_materials_file(materials_filename.lower())
+            if len(materials)==0:
+                raise Exception('The specified file is EMPTY.')
+        except:
+            print(materials_filename+'.txt cannot be read in properly.\nPlease define in the pop-up window')
+            gui_get_materials()
+            materials = read_materials_file('last')
+
+    return materials
+
+
 class NeiSubDir:
     """
 
@@ -126,7 +243,8 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
             #################### Start window   ##################################
             self.save_path = save_path
             self.window = Tk()
-            # window.minsize(width=800, height=500)
+            # self.window=Toplevel()
+            self.window.minsize(width=400, height=450)
             self.window.title("SYSTEM & DETECTOR ARRANGEMENTS")
             master = Frame(self.window, width=300)
             # master = ttk.Notebook(window)
@@ -150,10 +268,10 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
             Label(frame1_1, text='NAME', width=20).grid(row=0, sticky=W)
 
             self.aName = StringVar()
-            self.aName.set('Default')
+            # self.aName.set('Default')
             self.entryName = Entry(frame1_1, textvariable=self.aName)
             self.entryName.grid(row=0, column=1)
-            # self.aName.set('Default')
+            self.aName.set('Default')
 
             # frame for DIFFRACTION PLANE
             frame1_2 = Frame(frame1)
@@ -292,7 +410,7 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
             # self.type = self.aName.get()
             # self.chi_degrees = self.chi.get()
             # self.hkl = [self.h.get(), self.k.get(), self.l.get()]
-            self.energy = self.kEdge.get()
+            # self.energy = self.kEdge.get()
             # self.energy_range = [self.lowE.get(),self.highE.get()]
             # self.dist_fd = self.f2d.get()
 
@@ -303,12 +421,11 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
             # frame3.grid(row=2, column=0, sticky=NS)
             # TODO: frame for REMEMBER LAST SETTING
 
-            # TODO: frame for the CONFIRM button
             btConfirm = Button(frame3, text='CONFIRM', command=self.confirm)
             Button.config(btConfirm, font=('Helvetica', '11'))
             btConfirm.grid(row=0, columnspan=3)
             master.mainloop()
-
+            # mainloop()
         def confirm(self):
             #     self.diffaction_plane = self.diffPlane
             #     self.type = self.aName
@@ -349,7 +466,7 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
         try:
             arrangement = get_arrangement(path)
         except:
-            # window_for_get_arrangement
+            # window for get_arrangement
             print('(nei_get_arrangement)The "arrangement.dat" file either does not exist in the specified directory, or has errors in it.\n'
                   'Please input the system arrangement in the pop-up window.\n')
             gui_get_arrangement(save_path=save_path)
@@ -901,7 +1018,7 @@ def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
     try:
         import torch
     except ModuleNotFoundError:
-        print('(signal_noise_ratio) Module Pytorch is not found. Numpy will be used instead.')
+        print('(calculate_rhot) Module Pytorch is not found. Numpy will be used instead.')
         use_torch=False
 
     if algorithm=='':

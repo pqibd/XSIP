@@ -8,6 +8,343 @@ from matplotlib.figure import Figure
 import threading
 
 
+def read_default():
+    with open(Path('MU\materials\default.txt'), 'r') as file:
+        content = file.read().upper()
+    materials = re.split('\s*\n\s*', content)
+    return materials
+
+
+def read_materials_file(filename,verbose=False):
+    with open(Path('MU\\materials\\' + filename + '.txt'), 'r') as file:
+        content = file.read().upper()
+    materials = re.split('\s*\n\s*', content)
+    return materials
+
+
+def input_materials():
+    materials = input('\nPlease input the names of the materials to investigate.\n'
+                      'For example: K2SeO4 Se-Meth, Water\n'
+                      'Or press Enter to skip\n')
+    materials = re.findall(r"[\w'-]+", materials)
+    return materials
+
+
+def write_materials_file(materials, filename):
+    filename = filename.lower()
+    with open(Path('MU\\materials\\' + filename + '.txt'), 'w') as file:
+        if type(materials) == 'str':
+            file.write(materials)
+        else:
+            file.write('\n'.join(materials))
+    return
+
+
+class gui_get_materials:
+    """docstring"""
+
+    def __init__(self, save_path=''):
+        #################### create some ttk styles     ######################
+        # s = ttk.Style()
+        # s.configure("Small.TNotebook.Tab", padding=[25,5])
+        # # s.configure("BW.TNotebook.Tab", padding=[157,5])
+        # # s.configure('Kim.TNotebook.Tab', padding=[25,5])
+        #################### Start window   ##################################
+        self.save_path = save_path
+        # self.window = Tk()
+        self.window = Toplevel()
+        self.window.minsize(width=400, height=300)
+        self.window.title("Input the materials")
+        master = Frame(self.window, width=300)
+        # master = ttk.Notebook(window)
+        # master.pack(expand=1, fill="both")
+        master.pack()
+        ######################################################################
+        #################### frame input field ###################
+        # Main frame
+        Label(master, text='CHOOSE FROM EXISTING MATERIALS FILE').pack()
+        frame0 = Frame(master, bd=4)
+        frame0.pack(pady=5)
+        btSelectFile = Button(frame0, text='Browse', command=self.select)
+        btSelectFile.grid(row=0, columnspan=2)
+
+        Label(master, text='MATERIALS.\n(Hit ENTER on the keyboard after every material)').pack()
+        frame1 = Frame(master, bd=4)
+        frame1.pack(pady=5)
+        sbText = Scrollbar(frame1)
+        self.textMaterials = Text(frame1, height=9, width=30, yscrollcommand=sbText.set,
+                                  relief=SUNKEN)
+        self.textMaterials.grid(row=0, column=0)
+        sbText.config(command=self.textMaterials.yview)
+        sbText.grid(row=0, column=1, sticky=NS)
+        ######################### Frame2 for materials file name ##########
+        Label(master, text='MATERIALS ALIAS').pack(pady=5)
+        frame2 = Frame(master, bd=4)
+        frame2.pack(pady=5)
+        self.filename = Entry(frame2, width=30)
+        self.filename.pack()
+        ######################### FRAME3 for others #######################
+        # Main frame
+        frame3 = Frame(master, bd=4)
+        frame3.pack(pady=10)
+        # frame3.grid(row=2, column=0, sticky=NS)
+        # TODO: frame for REMEMBER LAST SETTING
+        btConfirm = Button(frame3, text='CONFIRM', command=self.confirm)
+        Button.config(btConfirm, font=('Helvetica', '11'))
+        btConfirm.grid(row=0, columnspan=3)
+        master.mainloop()
+
+    def select(self):
+        filename = filedialog.askopenfilename(title='Please select file')
+        print('Selected materials file:',filename)
+        # import os
+        filename = os.path.basename(filename).split('.')[0]  # get the filename from the full path
+        materials = read_materials_file(filename)
+        write_materials_file(materials, 'last')
+        self.window.destroy()
+
+    def confirm(self):
+        materials = self.textMaterials.get('1.0',
+                                           'end-1c')  # https://stackoverflow.com/questions/14824163/how-to-get-the-input-from-the-tkinter-text-box-widget
+        materials = re.split('\s*\n\s*', materials)
+        filename = self.filename.get()
+        write_materials_file(materials, filename)
+        write_materials_file(materials, filename='last')
+        self.window.destroy()
+
+
+class gui_get_arrangement():
+    """docstring"""
+
+    def __init__(self, root, save_path=''):
+        #################### create some ttk styles     ######################
+        # s = ttk.Style()
+        # s.configure("Small.TNotebook.Tab", padding=[25,5])
+        # # s.configure("BW.TNotebook.Tab", padding=[157,5])
+        # # s.configure('Kim.TNotebook.Tab', padding=[25,5])
+
+        #################### Start window   ##################################
+
+        self.save_path = save_path
+        self.window = Toplevel()
+        self.window.minsize(width=400, height=450)
+        self.window.title("SYSTEM & DETECTOR ARRANGEMENTS")
+        master = Frame(self.window, width=300)
+        # master = ttk.Notebook(window)
+        # master.pack(expand=1, fill="both")
+        master.pack()
+        ######################################################################
+
+        #################### frame1 for system arrangement ###################
+        # Main frame
+        # frame1 = LabelFrame(master,width=500, text = 'SYSTEM',bd=4, relief=GROOVE,labelanchor=N)
+        Label(master, text='SYSTEM').pack(pady=5)
+
+        frame1 = Frame(master, width=700)
+        # frame1.grid(row=0, column=0, sticky=NS)
+        frame1.pack(pady=5)
+        # Label(frame1, text='').grid()
+
+        # frame for the ARRANGEMENT NAME.
+        frame1_1 = Frame(frame1)
+        frame1_1.grid(sticky=W)
+        Label(frame1_1, text='NAME', width=20).grid(row=0, sticky=W)
+
+        self.aName = StringVar()
+        # self.aName.set('Default')
+        self.entryName = Entry(frame1_1, textvariable=self.aName)
+        self.entryName.grid(row=0, column=1)
+        self.aName.set('Default')
+
+        # frame for DIFFRACTION PLANE
+        frame1_2 = Frame(frame1)
+        frame1_2.grid(sticky=W)
+        Label(frame1_2, text='DIFFRACTION PLANE', width=20).grid(row=0, sticky=W)
+
+        self.diffPlane = StringVar()
+        self.rbtVerti = Radiobutton(frame1_2, text='Vertical', variable=self.diffPlane, value='Vertical')
+        self.rbtVerti.grid(row=0, column=1)
+
+        self.rbtHoriz = Radiobutton(frame1_2, text='Horizontal', variable=self.diffPlane, value='Horizontal')
+        self.rbtHoriz.grid(row=0, column=2)
+
+        self.diffPlane.set('Vertical')
+
+        # frame for ASYMMETRY ANGLE
+        frame1_3 = Frame(frame1)
+        frame1_3.grid(sticky=W)
+        Label(frame1_3, text='ASYMMETRY ANGLE', width=20).grid(row=0, sticky=W)
+
+        self.chi = DoubleVar()
+        self.entryChi = Entry(frame1_3, width=12, textvariable=self.chi).grid(row=0, column=1)
+        self.chi.set(0.0)
+
+        Label(frame1_3, text='Degree').grid(row=0, column=2)
+
+        # frame for H,K,L
+        frame1_4 = Frame(frame1)
+        frame1_4.grid(sticky=W)
+        Label(frame1_4, text='H,K,L', width=20).grid(row=0, sticky=W)
+
+        self.h = IntVar();
+        self.k = IntVar();
+        self.l = IntVar()
+        Label(frame1_4, width=3, text='H').grid(row=0, column=1)
+        self.entryH = Entry(frame1_4, width=3, textvariable=self.h).grid(row=0, column=2)
+        self.h.set(1)
+
+        Label(frame1_4, width=3, text='K').grid(row=0, column=3)
+        self.entryK = Entry(frame1_4, width=3, textvariable=self.k).grid(row=0, column=4)
+        self.k.set(1)
+
+        Label(frame1_4, width=3, text='L').grid(row=0, column=5)
+        self.entryL = Entry(frame1_4, width=3, textvariable=self.l).grid(row=0, column=6)
+        self.l.set(1)
+
+        # frame for K-EDGE
+        frame1_5 = Frame(frame1)
+        frame1_5.grid(sticky=W)
+        Label(frame1_5, text='K-EDGE', width=20).grid(row=0, sticky=W)
+
+        self.kEdge = DoubleVar()
+        self.entryEdge = Entry(frame1_5, width=12, textvariable=self.kEdge).grid(row=0, column=1)
+        self.kEdge.set(0.0)
+
+        Label(frame1_5, text='keV').grid(row=0, column=2)
+
+        # frame for ENERGY RANGE
+        frame1_6 = Frame(frame1)
+        frame1_6.grid(sticky=W)
+        Label(frame1_6, text='ENERGY RANGE', width=20).grid(row=0, sticky=W)
+
+        Label(frame1_6, text='LOW', width=5).grid(row=0, column=1)
+        self.lowE = DoubleVar()
+        self.entryLowE = Entry(frame1_6, width=5, textvariable=self.lowE).grid(row=0, column=2)
+        self.lowE.set(0.0)
+
+        Label(frame1_6, text='HIGH', width=5).grid(row=0, column=3)
+        self.highE = DoubleVar()
+        self.entryHighE = Entry(frame1_6, width=5, textvariable=self.highE).grid(row=0, column=4)
+        self.highE.set(0.0)
+
+        Label(frame1_6, text='keV').grid(row=0, column=5)
+
+        # frame for DISTANCE between FOCUS and DETECTOR
+        frame1_7 = Frame(frame1)
+        frame1_7.grid(sticky=W)
+        Label(frame1_7, text='FOCUS to DETECTOR', width=20).grid(row=0, sticky=W)
+
+        self.f2d = DoubleVar()
+        self.entryf2d = Entry(frame1_7, width=12, textvariable=self.f2d).grid(row=0, column=1)
+        self.f2d.set(0.0)
+
+        Label(frame1_7, text='mm').grid(row=0, column=2)
+
+        separator = Frame(master, height=2, bd=1, relief=SUNKEN)
+        separator.pack(fill=X, padx=5, pady=5)
+
+        #################### frame2 for detector arrangement ###################
+        # Main frame
+        # frame2 = LabelFrame(master, width=50, text='DETECTOR', bd=4, relief=GROOVE, labelanchor=N)
+        Label(master, text='DETECTOR').pack()
+
+        frame2 = Frame(master, width=800)
+        # frame2.grid(row=1, column=0, sticky=NS)
+        frame2.pack(pady=10)
+        # Label(frame2, text='').grid() #Make a blank line
+
+        # frame for DETECTOR TYPE
+        frame2_1 = Frame(frame2)
+        frame2_1.grid(sticky=W)
+        Label(frame2_1, text='TYPE', width=20).grid(row=0, sticky=W)
+
+        self.aType = StringVar()
+        self.entryType = Entry(frame2_1, textvariable=self.aType)
+        self.entryType.grid(row=0, column=1)
+        self.aType.set('Default')
+
+        # frame for PIXEL SIZE
+        # frame for DISTANCE between FOCUS and DETECTOR
+        frame2_2 = Frame(frame2)
+        frame2_2.grid(sticky=W)
+        Label(frame2_2, text='PIXEL SIZE', width=20).grid(row=0, sticky=W)
+
+        self.pixelSize = DoubleVar()
+        self.entryPixelSize = Entry(frame2_2, width=12, textvariable=self.pixelSize).grid(row=0, column=1)
+        self.kEdge.set(0.0)
+
+        Label(frame2_2, text='um').grid(row=0, column=2)
+
+        # frame for DETECTOR THRESHOLD
+        frame2_3 = Frame(frame2)
+        frame2_3.grid(sticky=W)
+        Label(frame2_3, text='THRESHOLD (%)', width=20).grid(row=0, sticky=W)
+
+        self.thres = DoubleVar()
+        self.entryThres = Entry(frame2_3, width=12, textvariable=self.thres).grid(row=0, column=1)
+        self.thres.set(50.0)
+
+        separator = Frame(master, height=2, bd=1, relief=SUNKEN)
+        separator.pack(fill=X, padx=5, pady=5)
+
+        ######################### get the values  ####################
+
+        # self.diffaction_plane = self.diffPlane.get()
+        # self.type = self.aName.get()
+        # self.chi_degrees = self.chi.get()
+        # self.hkl = [self.h.get(), self.k.get(), self.l.get()]
+        self.energy = self.kEdge.get()
+        # self.energy_range = [self.lowE.get(),self.highE.get()]
+        # self.dist_fd = self.f2d.get()
+
+        ######################### FRAME3 for others #######################
+        # Main frame
+        frame3 = Frame(master, bd=4)
+        frame3.pack(pady=10)
+        # frame3.grid(row=2, column=0, sticky=NS)
+        # TODO: frame for REMEMBER LAST SETTING
+
+        # TODO: frame for the CONFIRM button
+        btConfirm = Button(frame3, text='CONFIRM', command=self.confirm)
+        Button.config(btConfirm, font=('Helvetica', '11'))
+        btConfirm.grid(row=0, columnspan=3)
+        master.mainloop()
+
+    def confirm(self):
+        #     self.diffaction_plane = self.diffPlane
+        #     self.type = self.aName
+        #     self.chi_degrees = self.chi
+        #     self.hkl = [self.h, self.k, self.l]
+        #     self.energy = self.kEdge
+        #     self.energy_range = [self.lowE,self.highE]
+        #     self.dist_fd = self.f2d
+        #     # self.detector = self.detector(data)
+        aDict = {}
+
+        aDict['type'] = self.aName.get()
+        aDict['diffraction_plane'] = self.diffPlane.get()
+        aDict['chi_degrees'] = self.chi.get()
+        aDict['h'] = self.h.get()
+        aDict['k'] = self.k.get()
+        aDict['l'] = self.l.get()
+        aDict['energy'] = self.kEdge.get()
+        aDict['energy_range_low'] = self.lowE.get()
+        aDict['energy_range_high'] = self.highE.get()
+        aDict['dist_fd'] = self.f2d.get()
+        aDict['det_type'] = self.aType.get()
+        aDict['det_pixel'] = self.pixelSize.get() / 1000
+        aDict['det_pct_max'] = self.thres.get()
+        # todo: Be careful. Some values for arrangement are set to zero, because it is not in the gui
+        aDict['det_flip'] = 0
+        aDict['det_phperapu'] = 0
+        aDict['det_disp_x_demag'] = 0
+
+        arrange_df = pd.DataFrame.from_dict(aDict, orient='index')
+        arrange_df.to_csv(Path(self.save_path) / 'arrangement.dat', header=False)
+        # print(arrange_df)
+        self.window.destroy()
+
+########################  Main GUI  ###########################
 class NearEdgeImaging:
     """docstring for NearEdgeImaging"""
 
@@ -20,25 +357,64 @@ class NearEdgeImaging:
 
 
         #################### Start window   ##################################
-        window = Tk()
-        window.minsize(width=800, height=500)
-        window.title("Near Edge Imaging")
+        self.window = Tk()
+        self.window.minsize(width=800, height=500)
+        self.window.title("Near Edge Imaging")
 
-        master = ttk.Notebook(window)
+        master = ttk.Notebook(self.window)
         # master.pack(expand=1, fill="both")
         master.grid()
-
-
-        #################   Frame 1   ##########################################
         tabKES = ttk.Frame(master)
+        #################  Frame 0  ### Jun 18, 2019 Todo ######################
+        frame0 = LabelFrame(tabKES,bd=4,relief=RIDGE,
+                            text="STEP 0: SYSTEM ARRANGEMENT and MATERIALS",
+                            font=('Helvetica', '11'), labelanchor=N)
+        frame0.pack(pady=12)
+
+        # This block is used to create some grid spacing (Begin)
+        rows = 0
+        while rows < 50:
+            frame0.rowconfigure(rows, weight=1)
+            frame0.columnconfigure(rows, weight=1)
+            rows += 1
+        # This block is used to create some grid spacing (End)
+
+        btArrangement = Button(frame0, text="System Arrangement", command=self.call_arrangement_gui)
+        btArrangement.grid(row=0,column=0)
+
+        # If the materials button is not clicked, then the program will use default file.
+
+        self.select_materials = BooleanVar()
+        self.select_materials.set(False) # Material file is not specified
+        btMaterials = Button(frame0, text='Materials', command=self.call_materials_gui)
+        btMaterials.grid(row=0, column=6,columnspan=2)
+
+        #
+        # btSelect = Button(frame0,text='Select', command=self.select)
+        # btSelect.grid(row=0, column=2)
+        #################   Frame 1   ##########################################
+
         frame1 = LabelFrame(tabKES,bd=4,relief=RIDGE,
                             text = "STEP 1: SETUP PARAMETERS\n(Use default if you are not sure what they are)",
                             font = ('Helvetica', '11'),labelanchor=N)
         frame1.pack(pady=12)
+        # # materials
+        # ### checkbutton for 'set as default'
+        # self.set_default = BooleanVar()
+        # cbtDefault = Checkbutton(frame1, text='Set as default',variable=self.set_default)
+        # self.set_default.set(False)
+        #
+        # ### list view for 'choose materials set'
+        # self.cboxMatSets = ttk.Combobox()
+        # self.cboxMatSets.current(0)#show the first element in the combobox
+        # ### button to input 'new materials'
+
         # use file
         self.use_file = BooleanVar()
         cbtUseFile = Checkbutton(frame1, text="Use File", variable=self.use_file)
         self.use_file.set(True)
+
+        # lowpass filter
         self.lowpass = BooleanVar()
         cbtLowpass = Checkbutton(frame1, text="Lowpass Filter", variable=self.lowpass)
 
@@ -200,6 +576,7 @@ class NearEdgeImaging:
         frame3_1.grid(sticky=W)
         Label(frame3_1, text='Load Sinogram', width=15).grid(row=0, sticky=W)
         btLoad = Button(frame3_1, text='Browse', command=self.browseSino).grid(row=0, column=1)
+
         # combobox(下拉列表) for choosing the target sinogram
         self.sino_index = '0'
         self.target_sino_id = StringVar()
@@ -306,11 +683,11 @@ class NearEdgeImaging:
         # display an empty plot on canvas
         self.figure = Figure(figsize=(4, 4))
         figure = FigureCanvasTkAgg(self.figure, master=self.frameCanvas)
-        figure.draw()
+        # figure.draw()
         figure.get_tk_widget().grid()
 
         # ######################  Exit button   ################################
-        btExit = Button(window, text="EXIT", fg="red", command=quit, height=1, width=4,
+        btExit = Button(self.window, text="EXIT", fg="red", command=quit, height=1, width=4,
                         relief=FLAT, cursor='sailboat')
         btExit.grid(row=0, column=0, sticky=E+N,padx=5,pady=19)
 
@@ -341,6 +718,23 @@ class NearEdgeImaging:
         master.mainloop()
 
     ###################  Command Functions   #################################
+
+    def call_materials_gui(self):
+        gui_get_materials()
+        self.select_materials.set(True)
+        # print(self.materials)
+
+    # def select(self):
+    #     filename = filedialog.askopenfilename(title='Please select file')
+    #     # import os
+    #     filename = os.path.basename(filename).split('.')[0]  # get the filename from the full path
+    #     materials = read_materials_file(filename)
+    #     write_materials_file(materials, 'last')
+    #     self.materials=materials
+
+    def call_arrangement_gui(self):
+        gui_get_arrangement(root=self.window, save_path='')
+
     def reconState(self):
         self.rbtRecon1['state'] = NORMAL if self.do_recon.get() else DISABLED
         self.rbtRecon2['state'] = NORMAL if self.do_recon.get() else DISABLED
@@ -385,6 +779,10 @@ class NearEdgeImaging:
 
     def run(self):
         def thread_run():
+            if self.select_materials.get()==True:
+                materials = read_materials_file('last')
+            else:
+                materials = read_materials_file('default')
             data_path = self.path.get()
             save_path = self.save_path.get()
             n_proj = self.nproj.get()
@@ -407,7 +805,7 @@ class NearEdgeImaging:
                 reconstruction = self.recon.get()
             ct_center = self.center.get()
             snr = self.snr.get()
-            _ = nei(data_path=data_path, save_path=save_path, n_proj=n_proj, algorithm=algorithm,
+            _ = nei(materials=materials,data_path=data_path, save_path=save_path, n_proj=n_proj, algorithm=algorithm,
                     multislice=multislice, slice=slice, ct=ct, side_width=side_width,
                     e_range=energy_range, lowpass=lowpass, use_torch=use_torch, use_file=use_file,
                     fix_vertical_motion=fix_vertical_motion, reconstruction=reconstruction,

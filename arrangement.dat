@@ -1,18 +1,16 @@
-diffraction_plane,   'Vertical'
-type,                  'PENG'
-chi_degrees,            5.0000
-k,                      1
-l,                      1
-h,                      1
-energy,                12.6580
-energy_range_low,      12.6300
-energy_range_high,     12.7200
-dist_fd,               1496.0000
-det_type,              '9um'
-det_pixel,             0.009
-det_flip,              0.0
-det_phperapu,          1.000
-det_disp_x_demag,      1.0
-det_pct_max,           50.0
-
-
+type,Default
+diffraction_plane,Vertical
+chi_degrees,5.0
+h,1
+k,1
+l,1
+energy,12.658
+energy_range_low,0.0
+energy_range_high,0.0
+dist_fd,1600.0
+det_type,Default
+det_pixel,0.0136
+det_pct_max,50.0
+det_flip,0
+det_phperapu,0
+det_disp_x_demag,0

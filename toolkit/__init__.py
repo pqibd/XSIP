@@ -117,7 +117,7 @@ def class_to_dict(obj):
             obj[key] = class_to_dict(value)
         return obj
     except:
-        return obj    
+        return obj
 
 
 def load_object(fname=''):

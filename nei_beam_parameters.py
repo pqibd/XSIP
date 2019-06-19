@@ -39,8 +39,6 @@ def nei_beam_parameters(beam_files, setup, detector, fix_vertical_motion=False,
     print('(nei_beam_parameters) Bragg angle in degree:\n'
           '                     ', round(theta_b * 180 / math.pi, 3))
 
-    # Todo: What is this? 
-    bfact = math.cos(theta_b + chi) / math.cos(theta_b - chi)
 
     #######           Get beam_files       ################################
     flat = beam_files.flat
