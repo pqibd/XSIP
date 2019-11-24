@@ -1,6 +1,6 @@
 # XSIP
 A python version of data analysis software for my Ph.D. project: selenium speciation with spectral KES imaging method.
-The basic algorithms were from the IDL programs written by **Dr. L. Dean Chapman**.
+The basic algorithms were from the IDL programs written by **Prof. L. Dean Chapman**.
 
 # How to
 
