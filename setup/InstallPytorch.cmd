@@ -1,0 +1,1 @@
+activate %USERPROFILE%\.conda\envs\test2 & %USERPROFILE%\.conda\envs\test2\Scripts\pip install https://download.pytorch.org/whl/cu90/torch-1.1.0-cp36-cp36m-win_amd64.whl & %USERPROFILE%\.conda\envs\test2\Scripts\pip install https://download.pytorch.org/whl/cu90/torchvision-0.3.0-cp36-cp36m-win_amd64.whl

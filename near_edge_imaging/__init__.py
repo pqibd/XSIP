@@ -22,13 +22,13 @@ def define_materials(materials_filename):
     import re
 
     def read_default():
-        with open(Path('MU\materials\default.txt'),'r') as file:
+        with open(Path('MU/materials/default.txt'), 'r') as file:
             content = file.read().upper()
-        materials = re.split('\s*\n\s*',content)
+        materials = re.split('\s*\n\s*', content)
         return materials
 
     def read_materials_file(filename):
-        with open(Path('MU\\materials\\' + filename + '.txt'), 'r') as file:
+        with open(Path('MU/materials/' + filename + '.txt'), 'r') as file:
             content = file.read().upper()
         materials = re.split('\s*\n\s*', content)
         return materials
@@ -42,7 +42,7 @@ def define_materials(materials_filename):
 
     def write_materials_file(materials, filename):
         filename = filename.lower()
-        with open(Path('MU\\materials\\' + filename + '.txt'), 'w') as file:
+        with open(Path('MU/materials/' + filename + '.txt'), 'w') as file:
             if type(materials) == 'str':
                 file.write(materials)
             else:
@@ -61,7 +61,7 @@ def define_materials(materials_filename):
             #################### Start window   ##################################
             self.save_path = save_path
             # self.window = Tk()
-            self.window=Tk()
+            self.window = Tk()
             self.window.minsize(width=400, height=300)
             self.window.title("Input the materials")
             master = Frame(self.window, width=300)
@@ -72,10 +72,10 @@ def define_materials(materials_filename):
             #################### frame input field ###################
             # Main frame
             Label(master, text='CHOOSE FROM EXISTING MATERIALS FILE').pack()
-            frame0 = Frame(master,bd=4)
+            frame0 = Frame(master, bd=4)
             frame0.pack(pady=5)
-            btSelectFile = Button(frame0,text='Browse', command=self.select)
-            btSelectFile.grid(row=0,columnspan=2)
+            btSelectFile = Button(frame0, text='Browse', command=self.select)
+            btSelectFile.grid(row=0, columnspan=2)
 
             Label(master, text='MATERIALS.\n(Hit ENTER on the keyboard after every material)').pack()
             frame1 = Frame(master, bd=4)
@@ -102,10 +102,11 @@ def define_materials(materials_filename):
             Button.config(btConfirm, font=('Helvetica', '11'))
             btConfirm.grid(row=0, columnspan=3)
             master.mainloop()
+
         def select(self):
             filename = filedialog.askopenfilename(title='Please select file')
             import os
-            filename = os.path.basename(filename).split('.')[0] #get the filename from the full path
+            filename = os.path.basename(filename).split('.')[0]  # get the filename from the full path
             materials = read_materials_file(filename)
             write_materials_file(materials, 'last')
             self.window.destroy()
@@ -118,19 +119,20 @@ def define_materials(materials_filename):
             write_materials_file(materials, filename)
             write_materials_file(materials, filename='last')
             self.window.destroy()
+
     if materials_filename == '':
         gui_get_materials()
         materials = read_materials_file('last')
     else:
         try:
             materials = read_materials_file(materials_filename.lower())
-            if len(materials)==0:
+            if len(materials) == 0:
                 raise Exception('The specified file is EMPTY.')
         except:
-            print(materials_filename+'.txt cannot be read in properly.\nPlease define in the pop-up window')
+            print(materials_filename + '.txt cannot be read in properly.\nPlease define in the pop-up window')
             gui_get_materials()
             materials = read_materials_file('last')
-
+    materials = list(filter(None, materials))  # remove empty strings
     return materials
 
 
@@ -151,34 +153,35 @@ class NeiSubDir:
     A class object. 
         Contains paths of all the subfolders.
     """
+
     def __init__(self, path, After=False, EdgeB=False):
-        self.DarkBefore = path /'DarkBefore'
-        self.FlatBefore = path /'FlatBefore'
-        self.EdgeABefore = path /'EdgeABefore'
-        self.Tomo = path /'Tomo'
+        self.DarkBefore = path / 'DarkBefore'
+        self.FlatBefore = path / 'FlatBefore'
+        self.EdgeABefore = path / 'EdgeABefore'
+        self.Tomo = path / 'Tomo'
         if After == True:
-            self.DarkAfter = path /'DarkAfter'
-            self.FlatAfter = path /'FlatAfter'
-            self.EdgeAAfter = path /'EdgeAAfter'
+            self.DarkAfter = path / 'DarkAfter'
+            self.FlatAfter = path / 'FlatAfter'
+            self.EdgeAAfter = path / 'EdgeAAfter'
         else:  # use 'Before' for all 'After'
-            self.DarkAfter = path /'DarkBefore'
-            self.FlatAfter = path /'FlatBefore'
-            self.EdgeAAfter = path /'EdgeABefore'
+            self.DarkAfter = path / 'DarkBefore'
+            self.FlatAfter = path / 'FlatBefore'
+            self.EdgeAAfter = path / 'EdgeABefore'
         if EdgeB == True:
-            self.EdgeBBefore = path /'EdgeBBefore'
+            self.EdgeBBefore = path / 'EdgeBBefore'
             if After == True:
-                self.EdgeBAfter = path /'EdgeBAfter'
+                self.EdgeBAfter = path / 'EdgeBAfter'
             else:
-                self.EdgeBAfter = path /'EdgeBBefore'
+                self.EdgeBAfter = path / 'EdgeBBefore'
         else:  # use EdgeA for all EdgeB
-            self.EdgeBBefore = path /'EdgeABefore'
+            self.EdgeBBefore = path / 'EdgeABefore'
             if After == True:
-                self.EdgeBAfter = path /'EdgeAAfter'
+                self.EdgeBAfter = path / 'EdgeAAfter'
             else:
-                self.EdgeBAfter = path /'EdgeABefore'
+                self.EdgeBAfter = path / 'EdgeABefore'
 
 
-def nei_get_arrangement(path,save_path,arrangement_type='file'):
+def nei_get_arrangement(path, save_path='', arrangement_type='file'):
     """Reads in the arrangement for the experiment from the 'arrangement.dat' file. 
 
     Parameters
@@ -194,13 +197,14 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
     arrangement : Class
         The system arrangement information
     """
+
     class get_arrangement:
         def __init__(self, path):
-            filename = path/'arrangement.dat'
+            filename = path / 'arrangement.dat'
             data = pd.read_csv(filename, index_col=0, header=None, sep=r',\s*', engine='python')
             # print(data.info())
             # print(data)
-            data=data[1] # series
+            data = data[1]  # series
             for i in range(len(data)):  # remove the ' sign in some strings
                 data[i] = data[i].replace("'", "")
             data = data.to_dict()
@@ -426,6 +430,7 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
             btConfirm.grid(row=0, columnspan=3)
             master.mainloop()
             # mainloop()
+
         def confirm(self):
             #     self.diffaction_plane = self.diffPlane
             #     self.type = self.aName
@@ -448,7 +453,7 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
             aDict['energy_range_high'] = self.highE.get()
             aDict['dist_fd'] = self.f2d.get()
             aDict['det_type'] = self.aType.get()
-            aDict['det_pixel'] = self.pixelSize.get()/1000
+            aDict['det_pixel'] = self.pixelSize.get() / 1000
             aDict['det_pct_max'] = self.thres.get()
             # todo: Be careful. Some values for arrangement are set to zero, because it is not in the gui
             aDict['det_flip'] = 0
@@ -467,8 +472,9 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
             arrangement = get_arrangement(path)
         except:
             # window for get_arrangement
-            print('(nei_get_arrangement)The "arrangement.dat" file either does not exist in the specified directory, or has errors in it.\n'
-                  'Please input the system arrangement in the pop-up window.\n')
+            print(
+                '(nei_get_arrangement)The "arrangement.dat" file either does not exist in the specified directory, or has errors in it.\n'
+                'Please input the system arrangement in the pop-up window.\n')
             gui_get_arrangement(save_path=save_path)
             arrangement = get_arrangement(save_path)
     else:
@@ -476,7 +482,6 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
         gui_get_arrangement(save_path=save_path)
         arrangement = get_arrangement(save_path)
         print(save_path)
-
 
     arrangement_parameters = {'diffaction_plane': ' DIFFRACTION PLANE:',
                               'type': ' TYPE:',
@@ -504,8 +509,8 @@ def nei_get_arrangement(path,save_path,arrangement_type='file'):
     return arrangement
 
 
-def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
-                      rotate_90=False,twelve_bit=0):
+def read_average_tifs(files, flip=False, xlow=0, xhigh=0,
+                      rotate_90=False, twelve_bit=0):
     """
 
     Parameters
@@ -534,10 +539,10 @@ def read_average_tifs(files,flip=False,xlow=0,xhigh=0,
         image_array.append(np.array(PIL.Image.open(files[i])))
     image_array = np.array(image_array)
     average = image_array.mean(axis=0)
-    return(average)
+    return (average)
 
 
-def get_beam_files(path,After=False,Verbose=False,clip=False, flip=False):
+def get_beam_files(path, After=False, Verbose=False, clip=False, flip=False):
     '''
     return averaged flat, dark, edge images in form of 2d-arrays.
     Parameters
@@ -571,9 +576,9 @@ def get_beam_files(path,After=False,Verbose=False,clip=False, flip=False):
     dark_path = sub_dir.DarkBefore
     edge_path = sub_dir.EdgeABefore
 
-    flat_files = file_search(flat_path,'*.tif')
-    dark_files = file_search(dark_path,'*.tif')
-    edge_files = file_search(edge_path,'*.tif')
+    flat_files = file_search(flat_path, '*.tif')
+    dark_files = file_search(dark_path, '*.tif')
+    edge_files = file_search(edge_path, '*.tif')
 
     # read and average the raw data files - flats, darks, edges
     # 2d numpy.array(image) is returned by read_average_tifs
@@ -582,65 +587,69 @@ def get_beam_files(path,After=False,Verbose=False,clip=False, flip=False):
     edge = read_average_tifs(edge_files)
 
     image_size = flat.shape
-    n_horizontal = image_size[1] # Number of horizontal positions(pixels)
-    n_vertical   = image_size[0] # Number of energy points (the vertical direction on detector)
+    n_horizontal = image_size[1]  # Number of horizontal positions(pixels)
+    n_vertical = image_size[0]  # Number of energy points (the vertical direction on detector)
 
     class OriginBeamFiles:
         """
         This is used to keep a copy of beam files with their original shape when clip is true.
         """
-        def __init__(self,flat,dark,edge):
-            self.flat        = flat
-            self.dark        = dark
-            self.edge        = edge
 
-    origin_beam_files = OriginBeamFiles(flat,dark,edge)
+        def __init__(self, flat, dark, edge):
+            self.flat = flat
+            self.dark = dark
+            self.edge = edge
 
-    horizontal_low = 0; horizontal_high= n_horizontal  # Or n_horizontal-1?????
+    origin_beam_files = OriginBeamFiles(flat, dark, edge)
 
-    if clip: # keyword clip is used only to trim off the left and right black area out of the beam,
-             # This is usually not necessary, because the beam is supposed to fill the image all the
-             # way horizontally.
-        t = flat-dark
-        t_smooth = median_filter(t,5) # median smooth
-        t_smooth = t_smooth/(t_smooth.max())
-        t_average= t_smooth.mean(axis=0) # each element is the average of the vertical direction
-        bright_ratio  = t_average/(t_average.max())
+    horizontal_low = 0;
+    horizontal_high = n_horizontal  # Or n_horizontal-1?????
+
+    if clip:  # keyword clip is used only to trim off the left and right black area out of the beam,
+        # This is usually not necessary, because the beam is supposed to fill the image all the
+        # way horizontally.
+        t = flat - dark
+        t_smooth = median_filter(t, 5)  # median smooth
+        t_smooth = t_smooth / (t_smooth.max())
+        t_average = t_smooth.mean(axis=0)  # each element is the average of the vertical direction
+        bright_ratio = t_average / (t_average.max())
         # find where(bright_deriv >= pct_max/100.0)
-        bright_deriv  = np.gradient(bright_ratio) # the derivative for every element.
-                                                  # Considering the brightness center in the beam,
-                                                  # it should be positive on one side, and negative
-                                                  # on the other side
-        fn = bright_deriv/bright_ratio
-        x = np.arange(0.0,float(n_horizontal))
+        bright_deriv = np.gradient(bright_ratio)  # the derivative for every element.
+        # Considering the brightness center in the beam,
+        # it should be positive on one side, and negative
+        # on the other side
+        fn = bright_deriv / bright_ratio
+        x = np.arange(0.0, float(n_horizontal))
         # plt.ion()
-        if Verbose==True:
+        if Verbose == True:
             plt.plot(bright_ratio)
             plt.plot(bright_deriv)
             plt.plot(fn)
-            plt.legend(['Flat-Dark','Derivative(Flat-Dark)','Deriv/(Flat-Dark)'])
+            plt.legend(['Flat-Dark', 'Derivative(Flat-Dark)', 'Deriv/(Flat-Dark)'])
             plt.title('Brightness along horizontal axis, and its derivative')
             plt.show()
 
-        idx_left = (fn>0); idx_right = (fn<0)
-        fwhm_left,left_low,left_high = mp.fwhm(x[idx_left],fn[idx_left],Verbose=Verbose)
-        fwhm_right,right_low,right_high=mp.fwhm(x[idx_right],-fn[idx_right],Verbose=Verbose)
-        horizontal_low=left_high
-        horizontal_high=right_low
-        flat = flat[:,horizontal_low:horizontal_high]
-        dark = dark[:,horizontal_low:horizontal_high]
-        edge = edge[:,horizontal_low:horizontal_high]
+        idx_left = (fn > 0);
+        idx_right = (fn < 0)
+        fwhm_left, left_low, left_high = mp.fwhm(x[idx_left], fn[idx_left], Verbose=Verbose)
+        fwhm_right, right_low, right_high = mp.fwhm(x[idx_right], -fn[idx_right], Verbose=Verbose)
+        horizontal_low = left_high
+        horizontal_high = right_low
+        flat = flat[:, horizontal_low:horizontal_high]
+        dark = dark[:, horizontal_low:horizontal_high]
+        edge = edge[:, horizontal_low:horizontal_high]
 
     class BeamFiles:
-        def __init__(self,flat,dark,edge,horizontal_low,
-                     horizontal_high,origin_beam_files):
+        def __init__(self, flat, dark, edge, horizontal_low,
+                     horizontal_high, origin_beam_files):
             self.flat = flat
             self.dark = dark
             self.edge = edge
             self.horizontal_low = horizontal_low
-            self.horizontal_high= horizontal_high
-            self.origin_beam_files= origin_beam_files
-    return BeamFiles(flat,dark,edge,horizontal_low,horizontal_high,origin_beam_files)
+            self.horizontal_high = horizontal_high
+            self.origin_beam_files = origin_beam_files
+
+    return BeamFiles(flat, dark, edge, horizontal_low, horizontal_high, origin_beam_files)
 
 
 def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False):
@@ -664,7 +673,7 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False):
         The tomo data in 3d array (of one slice, if multislice = True).
     """
     path = Path(path)
-    sub_dir = NeiSubDir(path)# todo
+    sub_dir = NeiSubDir(path)  # todo
     tomo_files_all = file_search(sub_dir.Tomo, '*tif')
 
     # get the tomo images for ONE slice when there are multislices of projections in tomo image folder.
@@ -679,7 +688,7 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False):
     print('(get_tomo_files) Number of Tomo files: ', n_tomo)  # equal to n_projections
 
     # tomo files to data array
-    counter=0
+    counter = 0
     tomo_data = []
     if n_tomo >= 200:
         print('|--------------------------------------------------|\n|', end='')
@@ -687,27 +696,35 @@ def get_tomo_files(path, multislice=False, slice=0, n_proj=900, Verbose=False):
         tomo_data.append(np.array(PIL.Image.open(tomo_files[i])))
         if n_tomo >= 200:
             print('>' * (counter % int(n_tomo / 50) == 0), end='')
-        counter+=1
+        counter += 1
     print()
     tomo_data = np.array(tomo_data)
     return tomo_data
 
 
 def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='linear',
-                         use_file=True,use_sm_data=False, use_measured_standard=False):
+                         use_file=True, use_sm_data=False, use_measured_standard=False):
     '''
     Parameters
     ----------
-    materials : `list` of `str`. 
-        Example: materials = ['Water', 'Bone', 'Selenite', 'U' ]. Names of materials that we are investigating. They can be a standard compound name that gives all the information for the composition ('Na2SeO4'), or it can be an element name ('Se'), or it can be a nick name of a compound or material that we have stored the information in the 'COMPOSIT.DAT' file. The names are used to find the according μ/ρ of that material, so that they are very important.
+    materials : `list` of `str`s. 
+        Example: materials = ['Water', 'Bone', 'Selenite', 'U' ]. Names of materials that you want to investigate.
+        They can be a standard compound name that gives all the information for the composition ('Na2SeO4'), or it 
+        can be an element name ('Se'), or it can be a nick name of a compound or material that we have stored the 
+        information in the 'COMPOSIT.DAT' file. The names are used to find the according μ/ρ of that material, so 
+        that they are very important.
     exy : float, [ny(n_energies), nx(n_horizontal_pixel)]  ndarray. 
-        The energy 'map' on the detector. The value @ [iy, ix] location is the x-ray energy @ that pixel. The energy will be used to find according μ/ρ.
+        The energy 'map' on the detector. The value at [iy, ix] location is the x-ray energy at that pixel. The 
+        energy will be used to find corresponding μ/ρ.
     gaussian_energy_width : float 
-        The 'sigma' parameter of Gaussian function in terms of energy. It has a close relation to the system ENERGY RESOLUTION.
+        The 'sigma' parameter of Gaussian function in terms of energy. It has a close relation to the system energy 
+        resolution.
     interpol_kind : str, optional
-        Ddefault 'linear'. This is used for the scipy.interpolate.interp1d function. See scipy documentation for detail (https://docs.scipy.org/doc/scipy-0.19.1/reference/generated/scipy.interpolate.interp1d.html).
+        Default 'linear'. This parameter is passed to the `scipy.interpolate.interp1d` function. See scipy documentation
+         for detail (https://docs.scipy.org/doc/scipy-0.19.1/reference/generated/scipy.interpolate.interp1d.html).
     use_file : bool
-        Default True. Whether use the information in a stored file for the μ/ρ. If use_file = True, but actually there is no file for it, then it will automatically use computed value for \mu/\rhoμ/ρ.
+        Default True. Whether use the information in a stored file for the μ/ρ. If use_file = True, but actually 
+        there is no file for it, then it will automatically use computed value for μ/ρ.
     use_sm_data : bool
         Default False. Whether use a measured reference or a stored reference (in a file or by computation) from past for selenomethionine. This is not ready in the program yet. (Nov. 16, 2018)
     use_measured_standard: bool. 
@@ -730,21 +747,21 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
     # with the source of murhos
     # for name, source in materials.items():
     #     print('(nei_determine_murhos) Getting murho data for ' + name)
-        # if source.lower() == 'file':
-        #     # get murho from saved file
-        #     mu_rho = mp.murho_selenium_compounds(name, energies)
-        # elif source.lower() == 'system':
-        #     # get murho by calculating it for every element
-        #     mu_rho = mp.murho(name, energies)
-        # elif source.lower() == 'standard':
-        #     # Todo:
-        #     # get murho from experiment standard. Stardard data are collected with current experiment setting,
-        #     # and standard selenium compound solution ,etc.
-        #     pass
-        # else:
-        #     raise Exception('Material murho data source code is invalid.\n '
-        #                     'Please choose from ["SYSTEM", "FILE", "STANDARD"],\n'
-        #                     'and redefine the "source" variable\n')
+    # if source.lower() == 'file':
+    #     # get murho from saved file
+    #     mu_rho = mp.murho_selenium_compounds(name, energies)
+    # elif source.lower() == 'system':
+    #     # get murho by calculating it for every element
+    #     mu_rho = mp.murho(name, energies)
+    # elif source.lower() == 'standard':
+    #     # Todo:
+    #     # get murho from experiment standard. Stardard data are collected with current experiment setting,
+    #     # and standard selenium compound solution ,etc.
+    #     pass
+    # else:
+    #     raise Exception('Material murho data source code is invalid.\n '
+    #                     'Please choose from ["SYSTEM", "FILE", "STANDARD"],\n'
+    #                     'and redefine the "source" variable\n')
     # for name, source in materials.items():
     for name in materials:
         print('(nei_determine_murhos) Getting murho data for ' + name)
@@ -775,7 +792,7 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
     print('(nei_determine_murhos) Started doing interpolation to bundle MU_RHOS and EXY')
     for name in murhos.keys():  # iterate over every compound, save each 2d array in dictionary
         interpol = interp1d(energies, murhos[name], kind=interpol_kind)  # Get the interpol object for this compound
-        murhos_exy = np.empty((ny, nx)) # to save the murhos for one compound
+        murhos_exy = np.empty((ny, nx))  # to save the murhos for one compound
         for x in range(nx):
             murhos_exy[:, x] = interpol(exy[:, x])  # do the interpol prediction
         murhos_all[name] = murhos_exy  # save to dict
@@ -785,7 +802,7 @@ def nei_determine_murhos(materials, exy, gaussian_energy_width, interpol_kind='l
     return murhos_all
 
 
-def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
+def beam_edges(flat_dark, threshold, no_fit=False, Verbose=False, poly_deg=5):
     '''
     Locate the peak positions in the flat beam. Decide the useful region in the beam we are going to keep.
     Parameters
@@ -809,54 +826,83 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
         .peak: float, [nx] array. The peak positions of the flat_dark image. Usually polynomial fitted.
         .beam: float, [ny, nx] array. The usable beam region. This 2d array has the same shape flat and other image data array. And the usable region has is labeled with value 1, while the rest is labeled with value 0.
     '''
-    shape = flat_dark.shape
-    nx = shape[1]; ny = shape[0]
-    top_positions=[]; bot_positions=[];peak_positions=[]
-    for ind_x in range(nx): # loop through x axis
-        spectrum = flat_dark[:,ind_x]
-        spectrum = median_filter(spectrum,5)
-        y_index  = np.arange(len(spectrum))
+
+    def fix_zeros(data):
+        zero_index = np.where(data == 0)
+        count = len(zero_index[0])
+        for i in range(count):
+            iy = zero_index[0][i];
+            ix = zero_index[1][i]
+            # A 3x3 fliter is used to replace all the 0 with the median values around it
+            mask_range = data[max(0, iy - 1):min(iy + 2, data.shape[0]), max(0, ix - 1):min(ix + 2, data.shape[1])]
+            data[iy, ix] = np.median(mask_range[mask_range > 0])
+        return data
+
+    flat_dark = fix_zeros(flat_dark)
+
+    def find_peak(fd, ind_x):
+        spectrum = flat_dark[:, ind_x]
+        spectrum = median_filter(spectrum, 10)
+        y_index = np.arange(len(spectrum))
         peak = spectrum.max()
         peak_ind = spectrum.argmax()
         # Threshold 1: [-sigma,sigma] of normal distribution
         t1 = np.exp(-0.5)
-        sigma_ind = y_index[spectrum>(t1*peak)] #The index for all values > t1
-        sigma_width=0.5*(sigma_ind[-1]-sigma_ind[0])
-
-        estimate = [peak,peak_ind,sigma_width] #estimate for the gaussian function parameters
-                                               #This is also the plan B
-
+        sigma_ind = y_index[spectrum > (t1 * peak)]  # The index for all values > t1
+        sigma_width = 0.5 * (sigma_ind[-1] - sigma_ind[0])
+        estimate = [peak, peak_ind, sigma_width]  # estimate for the gaussian function parameters
+        # This is also the plan B
         # Call Gaussfit to calculate center and sigma, then the width
-        spectrum_gauss,gauss_popt = mp.gaussfit(y_index,spectrum,estimate)
+        spectrum_gauss, gauss_popt = mp.gaussfit(y_index, spectrum, estimate)
         gauss_center = gauss_popt[1]
-        gauss_sigma  = gauss_popt[2]
+        gauss_sigma = gauss_popt[2]
         y_peak = int(round(gauss_center))
         if y_peak not in y_index:
             raise ValueError('The peak index is not in reasonable range')
-        half_width = int(np.rint(gauss_sigma*np.sqrt(-2*np.log(threshold))))
-        y_top = round(y_peak+half_width)
-        if y_top>y_index.max():
+        half_width = int(np.rint(gauss_sigma * np.sqrt(-2 * np.log(threshold))))
+        y_top = round(y_peak + half_width)
+        y_top = min(y_top, y_index.max())  # in case out range of the image (2020-03-11)
+
+        if y_top > y_index.max():
             raise ValueError('Impossible! The position of beam top is higher than the beam.')
-        y_bot = round(y_peak-half_width)
-        if y_bot<y_index.min():
+        y_bot = round(y_peak - half_width)
+        y_bot = max(y_bot, y_index.min())  # in case out range of the image (2020-03-11)
+        if y_bot < y_index.min():
             raise ValueError('Impossible! The position of beam bottom is lower than the beam.')
+        return y_peak, y_top, y_bot
+
+    shape = flat_dark.shape
+    nx = shape[1];
+    ny = shape[0]
+    top_positions = [];
+    bot_positions = [];
+    peak_positions = []
+    for ind_x in range(nx):  # loop through x axis
+        try:
+            y_peak, y_top, y_bot = find_peak(flat_dark, ind_x)
+        except:
+            y_peak, y_top, y_bot = find_peak(flat_dark, ind_x - 1)
         top_positions.append(y_top)
         bot_positions.append(y_bot)
         peak_positions.append(y_peak)
 
-    peak_positions= median_filter(peak_positions,5)
-    peak_positions= np.rint(np.array(peak_positions)).astype(int)
-    top_positions = (peak_positions+half_width).astype(int)
-    bot_positions = (peak_positions-half_width).astype(int)
+    peak_positions = median_filter(peak_positions, 5)
+    peak_positions = np.rint(np.array(peak_positions)).astype(int)
+    top_positions = median_filter(top_positions, 5)
+    top_positions = np.rint(np.array(top_positions)).astype(int)
+    bot_positions = median_filter(bot_positions, 5)
+    bot_positions = np.rint(np.array(bot_positions)).astype(int)
+    # top_positions = (peak_positions+half_width).astype(int)
+    # bot_positions = (peak_positions-half_width).astype(int)
 
-    beam  = flat_dark*0 # Create zero array with the same shape of flat_dark
+    beam = flat_dark * 0  # Create zero array with the same shape of flat_dark
 
     class BeamEdges:
-        def __init__(self,top,bot,peak,beam):
-            self.top=top
-            self.bot=bot
-            self.peak=peak
-            self.beam=beam
+        def __init__(self, top, bot, peak, beam):
+            self.top = top
+            self.bot = bot
+            self.peak = peak
+            self.beam = beam
 
     if no_fit:  # return with no polynomial fit
         for i in range(nx):
@@ -865,25 +911,37 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
         return s
 
     ###############  Doing polynomial fit   ##############################
-    #Approach 1 : polynomial fit
+    # Approach 1 : polynomial fit
     # Only for the peak
-    print('(beam_edges) Doing polynomial fit for beam peak positions')
-    peak_poly_coef = np.polyfit(np.arange(nx), peak_positions,deg=poly_deg)
-    p = np.poly1d(peak_poly_coef)
-    peak_positions_poly = p(np.arange(nx))
+    print('(beam_edges) Doing polynomial fit')
 
-    peak_positions_poly=np.rint(np.array(peak_positions_poly)).astype(int) #round up the positions to integer
-    top_positions = (peak_positions_poly+half_width).astype(int)
-    bot_positions = (peak_positions_poly-half_width).astype(int)
+    def do_poly_fit(data, nx, poly_deg):
+        data_poly_coef = np.polyfit(np.arange(nx), data, deg=poly_deg)
+        p = np.poly1d(data_poly_coef)
+        data_poly = p(np.arange(nx))
 
-    for i in range(nx): # Light it up between top and bottom
-        beam[bot_positions[i]:top_positions[i]+1,i]=1.0 # Note the +1 to include the top position line
+        data_poly = np.rint(np.array(data_poly)).astype(int)  # round up the positions to integer
+        return data_poly
 
-    s = BeamEdges(top_positions, bot_positions, peak_positions_poly, beam)
+    peak_positions_poly = do_poly_fit(peak_positions, nx=nx, poly_deg=poly_deg)
+    # peak_poly_coef = np.polyfit(np.arange(nx), peak_positions,deg=poly_deg)
+    # p = np.poly1d(peak_poly_coef)
+    # peak_positions_poly = p(np.arange(nx))
+    #
+    # peak_positions_poly=np.rint(np.array(peak_positions_poly)).astype(int) #round up the positions to integer
+    # top_positions = (peak_positions_poly+half_width).astype(int)
+    # bot_positions = (peak_positions_poly-half_width).astype(int)
+    top_positions_poly = do_poly_fit(top_positions, nx=nx, poly_deg=poly_deg)
+    bot_positions_poly = do_poly_fit(bot_positions, nx=nx, poly_deg=poly_deg)
+
+    for i in range(nx):  # Light it up between top and bottom
+        beam[bot_positions_poly[i]:top_positions_poly[i] + 1, i] = 1.0  # Note the +1 to include the top position line
+
+    s = BeamEdges(top_positions_poly, bot_positions_poly, peak_positions_poly, beam)
 
     if Verbose:
-        plt.scatter(np.arange(len(peak_positions)),peak_positions,s=2,alpha=0.2,label='Before polynomial')
-        plt.plot(peak_positions_poly,color='r',label='Poly degree=5')
+        plt.scatter(np.arange(len(peak_positions)), peak_positions, s=2, alpha=0.2, label='Before polynomial')
+        plt.plot(peak_positions_poly, color='r', label='Poly degree=5')
         plt.title('peak_position from beam_edge.pro')
         plt.legend()
         plt.figure()
@@ -892,7 +950,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
         plt.show()
 
     ###################################################################
-    #Approach 2:
+    # Approach 2:
     ################################################################
     # Linear regression of course only gives a straight line
     # machine learning linear regression
@@ -921,7 +979,7 @@ def beam_edges(flat_dark,threshold,no_fit=False,Verbose=False,poly_deg=5):
     return s
 
 
-def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0):
+def calculate_mut(tomo_data, beam_parameters, lowpass=False, ct=False, side_width=0):
     """
     mu*t =  (mu/rho) * (rho * t) = -ln[(tomo-dark)/(flat-dark)]
     Parameters
@@ -946,40 +1004,43 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
     # tomo_data.shape is [n_tomo,ny,nx]
     flat = beam_parameters.beam_files.flat
     dark = beam_parameters.beam_files.dark
-    flat_dark = flat-dark
+    flat_dark = flat - dark
     beam = beam_parameters.beam
-    nx = beam.shape[1]; ny = beam.shape[0]
+    nx = beam.shape[1];
+    ny = beam.shape[0]
     n_tomo = tomo_data.shape[0]
 
-    mu_t = tomo_data*0.0 # make a 3_d array with the same shape of tomo_data, fill with zeros
+    mu_t = tomo_data * 0.0  # make a 3_d array with the same shape of tomo_data, fill with zeros
     print('(calculate_mut) Started calculating MU_T in every tomo image at every [energy,horizontal] position')
     if n_tomo >= 200:
         print('|--------------------------------------------------|\n|', end='')
-    counter=0
+    counter = 0
     for i in range(n_tomo):
-        mu_t[i]= -np.log((tomo_data[i]-dark)/flat_dark)
-        mu_t[i]= np.nan_to_num(mu_t[i])  #replace nan values with 0.
+        mu_t[i] = -np.log((tomo_data[i] - dark) / flat_dark)
+        mu_t[i] = np.nan_to_num(mu_t[i])  # replace nan values with 0.
 
-        if ct: # remove air absorption. Calculated from the left and right of the projection image,
-               # where there should be only air, no sample.
-            if side_width<=0: # making sure side_width is valid.
-                raise Exception('When `ct` is `True`, `side_width` needs to be defined for removing air absorption, and '
-                                'it has to be an integer >0')
+        if ct:  # remove air absorption. Calculated from the left and right of the projection image,
+            # where there should be only air, no sample.
+            if side_width <= 0:  # making sure side_width is valid.
+                raise Exception(
+                    'When `ct` is `True`, `side_width` needs to be defined for removing air absorption, and '
+                    'it has to be an integer >0')
             # mut_left_total = (mu_t[i]*beam)[:,0:side_width].sum()
             # mut_right_total= (mu_t[i]*beam)[:,-side_width:].sum()
             mut_left_total = mu_t[i][:, 0:side_width].sum()
             mut_right_total = mu_t[i][:, -side_width:].sum()
-            mut_left_count = beam[:,0:side_width].sum()
-            mut_right_count= beam[:,-side_width:].sum()
-            mut_left_avg   = mut_left_total/mut_left_count
-            mut_right_avg  = mut_right_total/mut_right_count
+            mut_left_count = beam[:, 0:side_width].sum()
+            mut_right_count = beam[:, -side_width:].sum()
+            mut_left_avg = mut_left_total / mut_left_count
+            mut_right_avg = mut_right_total / mut_right_count
             x_position = np.arange(nx)
-            filter_1d = mut_left_avg+(mut_right_avg-mut_left_avg)*((x_position-side_width/2)/(nx-side_width))
-            filter_2d = filter_1d*(beam*0.0+1.0)
+            filter_1d = mut_left_avg + (mut_right_avg - mut_left_avg) * (
+                        (x_position - side_width / 2) / (nx - side_width))
+            filter_2d = filter_1d * (beam * 0.0 + 1.0)
             # remove air absorption from total mu_t
             # Todo: possible correction  mu_t[i] = mu_t[i]-filter_2d
-            mu_t[i] = mu_t[i]-filter_2d
-        if n_tomo>=200:
+            mu_t[i] = mu_t[i] - filter_2d
+        if n_tomo >= 200:
             print('>' * (counter % int(n_tomo / 50) == 0), end='')
         counter += 1
     print('')
@@ -988,12 +1049,12 @@ def calculate_mut(tomo_data, beam_parameters,lowpass=False,ct=False,side_width=0
     pixel_gaussian_width = beam_parameters.pixel_edge_width
     if lowpass:
         print('(calculate_mut) Applying lowpass filter along energy axis')
-        mu_t = gaussian_filter(mu_t,[0,pixel_gaussian_width,0],truncate=3.0,mode='nearest')
+        mu_t = gaussian_filter(mu_t, [0, pixel_gaussian_width, 0], truncate=3.0, mode='nearest')
 
     return mu_t
 
 
-def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
+def calculate_rhot(mu_rhos, mu_t, beam, names, algorithm='', use_torch=True):
     """
     calculate the **ρ⋅t** for every material at every horizontal position in every projection
     Parameters
@@ -1019,20 +1080,20 @@ def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
         import torch
     except ModuleNotFoundError:
         print('(calculate_rhot) Module Pytorch is not found. Numpy will be used instead.')
-        use_torch=False
+        use_torch = False
 
-    if algorithm=='':
-        algorithm=input('Choose algorithm from:  "nnls", "sKES_equation"\n'
-                        '(type and enter): ')
+    if algorithm == '':
+        algorithm = input('Choose algorithm from:  "nnls", "sKES_equation"\n'
+                          '(type and enter): ')
 
-    nm = mu_rhos.shape[0] # number of materials
+    nm = mu_rhos.shape[0]  # number of materials
 
     if algorithm == 'nnls':
         print('(calculate_rhot) Algorithm: "scipy.optimize.nnls"')
         import scipy.optimize.nnls as nnls
         n_tomo = mu_t.shape[0]
         nx = mu_t.shape[2]
-        rho_t = np.zeros(shape=(nm,n_tomo, nx))
+        rho_t = np.zeros(shape=(nm, n_tomo, nx))
         counter = 0
         start_time = time.clock()
         print('(calculate_rhot) Started calculating RHO_T with linear regression')
@@ -1080,11 +1141,11 @@ def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
             if n_proj >= 200:
                 print('|--------------------------------------------------|\n|', end='')
             sum_vector = torch.zeros(size=(n_materials, n_proj, nx))
-            counter=0
+            counter = 0
             for i in range(n_materials):
                 for j in range(n_proj):
-                    sum_vector[i, j] = (mu_rhos[i] * mu_t[j] * beam).sum(dim=0) / beam.sum(dim=0)
-                    if n_proj>=200:
+                    sum_vector[i, j] = ((mu_rhos[i] * mu_t[j]) * beam).sum(dim=0) / (beam.sum(dim=0))
+                    if n_proj >= 200:
                         print('>' * (counter % int(n_materials * n_proj / 50) == 0), end='')
                     counter += 1
 
@@ -1092,7 +1153,7 @@ def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
             rho_t = sum_vector * 0.0
             for i in range(n_materials):
                 rho_t[i] = (inverted_mean_square_murhos[i] * (sum_vector.transpose(1, 0))).sum(dim=1)
-            rho_t=rho_t.numpy()
+            rho_t = rho_t.numpy()
 
         else:
             print('(calculate_rhot) Using "numpy"')
@@ -1109,19 +1170,20 @@ def calculate_rhot(mu_rhos,mu_t,beam,names,algorithm='',use_torch=True):
             sum_vector = np.zeros(shape=(n_materials, n_proj, nx))
             for i in range(n_materials):
                 for j in range(n_proj):
-                    sum_vector[i,j] = (mu_rhos[i] * mu_t[j] * beam).sum(axis=0) / (beam.sum(axis=0))
+                    sum_vector[i, j] = (mu_rhos[i] * mu_t[j] * beam).sum(axis=0) / (beam.sum(axis=0))
 
             print('(calculate_rhot) Multiplying matrix 1 and 2')
             rho_t = sum_vector * 0.0
             for i in range(n_materials):
                 rho_t[i] = (inverted_mean_square_murhos[i] * (sum_vector.transpose(1, 0, 2))).sum(axis=1)
 
-    else: raise Exception('"Algorithm" is not properly defined. Please choose from ["nnls", "sKES_equation"]')
+    else:
+        raise Exception('"Algorithm" is not properly defined. Please choose from ["nnls", "sKES_equation"]')
     print('(calculate_rhot) Finished "calculate_rhot"')
     return rho_t
 
 
-def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=True):
+def signal_noise_ratio(mu_rhos, mu_t, rho_t, beam_parameters, tomo_data, use_torch=True):
     """
     Spectral KES for m-components SNR equation is used for SNR calculation.
     [Ref: Ying Zhu,2012 Dissertation]
@@ -1141,7 +1203,7 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
         import torch
     except:
         print('(signal_noise_ratio) Module pytorch is not available. Numpy will be used instead.')
-        use_torch=False
+        use_torch = False
 
     if use_torch:
         print('(signal_noise_ratio) Preparing things for calculation')
@@ -1157,27 +1219,27 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
         nx = mu_rhos.size(2)
         n_proj = mu_t.size(0)
         # Todo: Use raw tomo_data? or filtered tomo_data from mu_t?
-        matrix1 = 1/(tomo_data-dark)+1/(flat-dark)
+        matrix1 = 1 / (tomo_data - dark) + 1 / (flat - dark)
 
-        inverted_mean_square_murhos = torch.zeros(size=(n_materials,n_materials,nx),dtype=torch.float)
+        inverted_mean_square_murhos = torch.zeros(size=(n_materials, n_materials, nx), dtype=torch.float)
         for i in range(n_materials):
             for j in range(n_materials):
-                inverted_mean_square_murhos[i,j] = (mu_rhos[i]*mu_rhos[j]*beam).sum(dim=0)/beam_width
+                inverted_mean_square_murhos[i, j] = (mu_rhos[i] * mu_rhos[j] * beam).sum(dim=0) / beam_width
         for x in range(nx):
-            inverted_mean_square_murhos[:,:,x] = torch.inverse(inverted_mean_square_murhos[:,:,x])
+            inverted_mean_square_murhos[:, :, x] = torch.inverse(inverted_mean_square_murhos[:, :, x])
 
-        loops = n_materials*n_proj
+        loops = n_materials * n_proj
         print('(signal_noise_ratio) Calculating SIGNAL to NOISE RATIO')
         if loops >= 200:
             print('|--------------------------------------------------|\n|', end='')
         counter = 0
-        snrs = torch.zeros(size=(n_materials,n_proj,nx),dtype=torch.float)
+        snrs = torch.zeros(size=(n_materials, n_proj, nx), dtype=torch.float)
         for m in range(n_materials):
-            matrix_temp=torch.zeros(size=(n_materials,n_energies,nx),dtype=torch.float)
+            matrix_temp = torch.zeros(size=(n_materials, n_energies, nx), dtype=torch.float)
             for e in range(n_energies):
-                matrix_temp[:,e,:] = inverted_mean_square_murhos[m]*mu_rhos[:,e,:]
-            matrix2 = matrix_temp.sum(dim=0)**2  #[n_energies,nx]
-            denom = torch.zeros(size=(n_proj,nx),dtype=torch.float)
+                matrix_temp[:, e, :] = inverted_mean_square_murhos[m] * mu_rhos[:, e, :]
+            matrix2 = matrix_temp.sum(dim=0) ** 2  # [n_energies,nx]
+            denom = torch.zeros(size=(n_proj, nx), dtype=torch.float)
             for p in range(n_proj):
                 # Todo: make sure where the "beam_width" should be placed
                 denom[p] = torch.sqrt((matrix2 * (matrix1[p] * beam)).sum(dim=0) / beam_width)
@@ -1188,10 +1250,10 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
         print()
         snrs = snrs.numpy()
 
-    else: # use numpy
+    else:  # use numpy
         # mu_rhos = np.array(list(mu_rhos.values())).astype(float) #[n_materials,n_energies,nx]
         # rho_t = np.array(list(rho_t.values())).astype(float) #[n_materials,n_projections,nx]
-        beam = beam_parameters.beam.astype(float)  #[n_energies,nx]
+        beam = beam_parameters.beam.astype(float)  # [n_energies,nx]
         flat = beam_parameters.beam_files.flat.astype(float)
         dark = beam_parameters.beam_files.dark.astype(float)
         beam_width = beam.sum(axis=0)
@@ -1200,7 +1262,7 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
         nx = mu_rhos.shape[2]
         n_proj = mu_t.shape[0]
 
-        matrix1 = 1/(tomo_data-dark)+1/(flat-dark) #[n_proj,n_energies,nx]
+        matrix1 = 1 / (tomo_data - dark) + 1 / (flat - dark)  # [n_proj,n_energies,nx]
 
         # mu_rhos.shape: [n_materials,ny,nx]  mu_t.shape:[n_proj,ny,nx]   beam.shape:[ny,nx]
         inverted_mean_square_murhos = np.zeros(shape=(n_materials, n_materials, nx))
@@ -1210,18 +1272,18 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
         for x in range(nx):
             inverted_mean_square_murhos[:, :, x] = np.linalg.inv(inverted_mean_square_murhos[:, :, x])
 
-        loops = n_materials*n_proj
+        loops = n_materials * n_proj
         print('(signal_noise_ratio) Calculating SIGNAL to NOISE RATIO')
         if loops >= 200:
             print('|--------------------------------------------------|\n|', end='')
         counter = 0
         snrs = np.zeros((n_materials, n_proj, nx))
         for m in range(n_materials):
-            matrix_temp = np.zeros((n_materials,n_energies,nx),float)
+            matrix_temp = np.zeros((n_materials, n_energies, nx), float)
             for e in range(n_energies):
                 matrix_temp[:, e, :] = inverted_mean_square_murhos[m] * mu_rhos[:, e, :]
             matrix2 = matrix_temp.sum(axis=0) ** 2  # [n_energies,nx]
-            denom = np.zeros((n_proj, nx),float)
+            denom = np.zeros((n_proj, nx), float)
             for p in range(n_proj):
                 # Todo: make sure where the "beam_width" should be placed
                 denom[p] = np.sqrt((matrix2 * (matrix1[p] * beam)).sum(axis=0) / beam_width)
@@ -1231,10 +1293,10 @@ def signal_noise_ratio(mu_rhos,mu_t,rho_t,beam_parameters,tomo_data,use_torch=Tr
             snrs[m] = rho_t[m] / denom  # [n_proj,nx]
             print()
 
-    return snrs # [n_materials,n_proj,nx]
+    return snrs  # [n_materials,n_proj,nx]
 
 
-def idl_recon(sinogram,pixel_size,center=0):
+def idl_recon(sinogram, pixel_size, center=0):
     """
     CT reconstruction with the "normalized_fbp" function from IDL. Note: Licensed IDL software is required.
     Parameters
@@ -1251,22 +1313,22 @@ def idl_recon(sinogram,pixel_size,center=0):
     """
     from idlpy import IDL
     dimensions = sinogram.ndim
-    if dimensions ==3:
-        recon=[]
+    if dimensions == 3:
+        recon = []
         for i in range(sinogram.shape[0]):
-            print('(idl_recon) Started one CT reconstruction...',end='')
-            recon.append(IDL.normalized_fbp(sinogram[i],dx=center,pixel=pixel_size))
+            print('(idl_recon) Started one CT reconstruction...', end='')
+            recon.append(IDL.normalized_fbp(sinogram[i], dx=center, pixel=pixel_size))
         recon = np.array(recon)
-    elif dimensions==2:
-        print('(idl_recon) Started one CT reconstruction...',end='')
-        recon = IDL.normalized_fbp(sinogram,dx=center,pixel=pixel_size)
+    elif dimensions == 2:
+        print('(idl_recon) Started one CT reconstruction...', end='')
+        recon = IDL.normalized_fbp(sinogram, dx=center, pixel=pixel_size)
     else:
         raise Exception('The dimensions of input "sinogram" should be either 2 or 3.'
-                        ,dimensions,'dimensions were given.')
+                        , dimensions, 'dimensions were given.')
     return recon
 
 
-def skimage_recon(sinogram,pixel_size=1.0,output_size=None,filter='ramp',center=0,degrees = 180,circle=True):
+def skimage_recon(sinogram, pixel_size=1.0, output_size=None, filter='ramp', center=0, degrees=180, circle=True):
     """
     CT reconstruction using Inverse Radon Transform, with Filtered Back Projection algorithm.
     See "radon_transform" in skimage.transform for more detail.
@@ -1290,34 +1352,40 @@ def skimage_recon(sinogram,pixel_size=1.0,output_size=None,filter='ramp',center=
     recon: 3d or 2d-array [(n_something),n_horizontal_positions,n_horizontal_positions].
 
     """
-    from skimage.transform import iradon # The imported `iradon` here is a modified version
+    from skimage.transform import iradon  # The imported `iradon` here is a modified version
     # if sinogram.ndim>=3, which means there is more than one sinogram. Iterate them all.
     # The last two dimension should be the sinogram array.
-    if sinogram.ndim>=3:
+    if sinogram.ndim >= 3:
         recon = []
         for i in range(sinogram.shape[0]):
-            recon.append(skimage_recon(sinogram[i],pixel_size=pixel_size,
-                                       output_size=output_size,filter=filter,center=center,
+            recon.append(skimage_recon(sinogram[i], pixel_size=pixel_size,
+                                       output_size=output_size, filter=filter, center=center,
                                        circle=circle))
         recon = np.array(recon)
         return recon
     # when sinogram.ndim==2, do the reconstruction.
-    print('(skimage_recon) Started one CT reconstruction...',end='')
+    print('(skimage_recon) Started one CT reconstruction...', end='')
     n_proj = sinogram.shape[0]
-    if not output_size: # If Output_size not specified, use the image horizontal width
-        output_size=sinogram.shape[1]
-    sinogram = sinogram.transpose(1,0) # transpose row and column to meet the order in skimage.transform.
-    theta = np.linspace(0,degrees,n_proj) # make the angles of projections from 0 to 180 degree
-    recon = iradon(sinogram,theta=theta,output_size=output_size,filter=filter,
-                   center_drift=center,circle=circle)
+
+    # Use the rotation center for trimming the sinogram
+    if center>=0:
+        sinogram = sinogram[:,2*center:]
+    else:
+        sinogram = sinogram[:,:-2*center]
+
+    if not output_size:  # If Output_size not specified, use the image horizontal width
+        output_size = sinogram.shape[1]
+    sinogram = sinogram.transpose(1, 0)  # transpose row and column to meet the order in skimage.transform.
+    theta = np.linspace(0, degrees, n_proj)  # make the angles of projections from 0 to 180 degree
+    recon = iradon(sinogram, theta=theta, output_size=output_size, filter=filter, circle=circle) #center_drift=center
     # correct result with pixel size (cm).
-    recon = recon/pixel_size
+    recon = recon / pixel_size
     print('...Finished')
 
     return recon
 
 
-def auto_center(data):
+def auto_center(data, rotation_degree=180):
     """
     Use this function to auto locate the rotation center of CT reconstruction imaging.
     Parameters
@@ -1329,26 +1397,43 @@ def auto_center(data):
     drift : int 
         The relative pixel distance between the detected rotation center and the middle of the x-axis in the image. Negative value means rotation center is on the left side of the center of the image, and positive value means the opposite.
     """
-    areas=[]
-    center = round(data.shape[1]/2)
-    drifts = np.arange(-center+1,center) # center is also the radius
-    for d in drifts:
-        if d <= 0:
-            a1 = data[0]
-            a2 = np.append(data[-1,2*d-1:0:-1],data[-1,2*d-1:])
-        else:
-            a1 = data[0]
-            a2 = np.append(data[-1,0:2*d],data[-1,:2*d-1:-1])
-    #     print(a1.shape,a2.shape,d)
-        a = np.vstack((a1,a2)).min(axis=0)
-    #     print(d,a.shape)
-        area = (a-a.min()).sum()
-        areas.append(area)
+    areas = []
+    center = round(data.shape[1] / 2)
+    drifts = np.arange(-center + 1, center)  # center is also the radius
+    if rotation_degree == 180:
+        for d in drifts:
+            if d <= 0:
+                a1 = data[0]
+                a2 = np.append(data[-1, 2 * d - 1:0:-1], data[-1, 2 * d - 1:])
+            else:
+                a1 = data[0]
+                a2 = np.append(data[-1, 0:2 * d], data[-1, :2 * d - 1:-1])
+            #     print(a1.shape,a2.shape,d)
+            a = np.vstack((a1, a2)).min(axis=0)
+            #     print(d,a.shape)
+            area = (a - a.min()).sum()
+            areas.append(area)
+    elif rotation_degree == 360:
+        halfway_projection = round(data.shape[0] / 2)
+        for d in drifts:
+            if d <= 0:
+                a1 = data[0]
+                a2 = np.append(data[halfway_projection, 2 * d - 1:0:-1], data[halfway_projection, 2 * d - 1:])
+            else:
+                a1 = data[0]
+                a2 = np.append(data[halfway_projection, 0:2 * d], data[halfway_projection, :2 * d - 1:-1])
+            #     print(a1.shape,a2.shape,d)
+            a = np.vstack((a1, a2)).min(axis=0)
+            #     print(d,a.shape)
+            area = (a - a.min()).sum()
+            areas.append(area)
+    else:
+        raise ('`rotation_degree` should be either 180 or 360.')
     drift = drifts[np.array(areas).argmax()]
-    return(drift)
+    return (drift)
 
 
-def rho_in_ct(recon,names=None,center=[],width=0.0,save_path=''):
+def rho_in_ct(recon, names=None, center=[], width=0.0, save_path=''):
     """
     Calculate the average $\rho$ value in the target area in input recon image. If *center* and *width*
     are provided, target area is the wanted area. If not provided, this function will find the brightest
@@ -1356,7 +1441,7 @@ def rho_in_ct(recon,names=None,center=[],width=0.0,save_path=''):
     Parameters
     ----------
     recon : n-dimension (n>=2) array [..,nx,nx]
-        The last two dimensions form one image.
+        The last two dimensions form one CT image.
     names : list of strings, optional, default `None`. 
         If you want to label the calculated area with a name, pass in the list of names.
     center : 2-element list of `int`, or list of 2-element lists, Optional. 
@@ -1374,71 +1459,73 @@ def rho_in_ct(recon,names=None,center=[],width=0.0,save_path=''):
     # If more than 1 recon, use RECURSION to go through all of them.
     # The last two dimensions should be the recon image array
     if recon.ndim >= 3:
-        if recon.ndim==3 and names and len(names)>1:
+        if recon.ndim == 3 and names and len(names) > 1:
             # when there are more than one material, and there are 3 dimensions,
             # the 1st dimension represents the materials. Use the names as the reference for
             # making plots.
-            mean_rho=[]
+            mean_rho = []
             for i in range(recon.shape[0]):
-                mean_rho.append(rho_in_ct(recon[i],names[i],center=center,width=width,save_path=save_path))
+                mean_rho.append(rho_in_ct(recon[i], names[i], center=center, width=width, save_path=save_path))
         else:
             mean_rho = []
             for i in range(recon.shape[0]):
-                mean_rho.append(rho_in_ct(recon[i], names, center=center, width=width,save_path=save_path))
+                mean_rho.append(rho_in_ct(recon[i], names, center=center, width=width, save_path=save_path))
         return np.array(mean_rho)
 
     center = np.array(center).round().astype(int)
-    if len(center)==0: # No center position is provided
+    if len(center) == 0:  # No center position is provided
         # find the bright area
         ct_filtered = median_filter(recon, 20)  # A big filter here, just to locate the center of target
-        target = np.where(ct_filtered > ct_filtered.max() * 0.7) # Threshold is 0.7 to locate target
+        target = np.where(ct_filtered > ct_filtered.max() * 0.7)  # Threshold is 0.7 to locate target
         xmin = target[1].min()
         xmax = target[1].max()
         ymin = target[0].min()
         ymax = target[0].max()
         x0 = round((xmin + xmax) / 2)
         y0 = round((ymin + ymax) / 2)
-        center = np.array([x0, y0]).reshape((1,2))
-        width = min([ymax - ymin, xmax - xmin]) / 2 # Use the 0.5 of maxs to be the width for square
-    elif center.ndim==1:  # One center position is provided
+        center = np.array([x0, y0]).reshape((1, 2))
+        width = min([ymax - ymin, xmax - xmin]) / 2  # Use the 0.5 of maxs to be the width for square
+    elif center.ndim == 1:  # One center position is provided
         # y0=center[1]; x0=center[0]
-        center = center.reshape((1,2))
+        center = center.reshape((1, 2))
     width = round(width)
-    plt.figure(figsize=(9,9))
-    plt.imshow(recon*1000, cmap='gray_r')
-    plt.colorbar().set_label('$mg/cm^3$',rotation=0,position=(1,1),labelpad=-5)
-    mean_rhos=[]
+    plt.figure(figsize=(9, 9))
+    plt.imshow(recon * 1000, cmap='gray_r')
+    plt.colorbar().set_label('$mg/cm^3$', rotation=0, position=(1, 1), labelpad=-5)
+    mean_rhos = []
     for i in range(center.shape[0]):
-        y0 = center[i][1]; x0 = center[i][0]
+        y0 = center[i][1];
+        x0 = center[i][0]
         width = round(width)
         x1 = int(x0 - 0.5 * width);
         x2 = int(x0 + 0.5 * width);
         y1 = int(y0 - 0.5 * width);
         y2 = int(y0 + 0.5 * width)
-        mean_rhos.append((recon[y1:y2, x1:x2].mean()*1000).round(2)) # change the unit to mg/cm^3
-        draw_square([y0,x0], width, color='b')
+        mean_rhos.append((recon[y1:y2, x1:x2].mean() * 1000).round(2))  # change the unit to mg/cm^3
+        draw_square([y0, x0], width, color='b')
 
-    if save_path=='':
+    if save_path == '':
         save_path = choose_path('Please select directory to save reconstruction images:')
-        if save_path =='': # No path is selected, just show the result and return.
+        if save_path == '':  # No path is selected, just show the result and return.
             print('(rho_in_ct) Average density in the square(s) is:\n'
                   '          ', mean_rhos, 'mg/cm^3')
             return np.array(mean_rhos)
 
     save_path = str(save_path)
-    figures = fnmatch.filter(os.listdir(save_path),'*.png')
+    figures = fnmatch.filter(os.listdir(save_path), '*.png')
     n_fig = len(figures)
-    if names: # if we know the name of the material for the CT recon
-        mean_molar_concentration = 1000 * np.array(mean_rhos)/mp.molar_mass(names) #mM
+    if names:  # if we know the name of the material for the CT recon
+        mean_molar_concentration = 1000 * np.array(mean_rhos) / mp.molar_mass(names)  # mM
         plt.title('Concentration of ' + str(names))
         plt.savefig(save_path + str(names) + '.png')
 
-        print('(rho_in_ct) Average density of '+str(names)+' in the square(s) is:\n'
-          '          ', mean_rhos,'mg/cm^3, Or',mean_molar_concentration.round(2),'mM.')
+        print('(rho_in_ct) Average density of ' + str(names) + ' in the square(s) is:\n'
+                                                               '          ', mean_rhos, 'mg/cm^3, Or',
+              mean_molar_concentration.round(2), 'mM.')
     else:
-        plt.savefig(save_path  + str(n_fig) + '.png')
+        plt.savefig(save_path + str(n_fig) + '.png')
         print('(rho_in_ct) Average density in the square(s) is:\n'
-          '          ', mean_rhos,'mg/cm^3')
+              '          ', mean_rhos, 'mg/cm^3')
 
     return np.array(mean_rhos)
 
@@ -1459,14 +1546,12 @@ def calculate_distance(path, x_location, proj, smooth_width=20):
     beam_files = get_beam_files(path)
     flat = beam_files.flat
     dark = beam_files.dark
-    mut = -np.log((tomo[proj]-dark)/(flat-dark))
+    mut = -np.log((tomo[proj] - dark) / (flat - dark))
 
-    d_theta = math.radians(0.01999) # angle distance between the 2 peaks of selenate spectrum
+    d_theta = math.radians(0.01999)  # angle distance between the 2 peaks of selenate spectrum
     a0 = 5.4305  # Angstroms ##silicon crystal unit cell length at 300K.
     hkl = arrangement.hkl
     d_hkl = a0 / math.sqrt((np.array(hkl) ** 2).sum())
-    pixel_size = arrangement.detector.pixel #mm
+    pixel_size = arrangement.detector.pixel  # mm
 
-    mut = np.median(mut[:,x_location-round(smooth_width/2):x_location+round(smooth_width/2)],axis=1)
-
-
+    mut = np.median(mut[:, x_location - round(smooth_width / 2):x_location + round(smooth_width / 2)], axis=1)

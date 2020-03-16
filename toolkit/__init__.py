@@ -8,6 +8,7 @@ import imageio
 from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import misc
 
 
 def plot(x):
@@ -73,8 +74,10 @@ def file_search(path,filter='*'):
               '\nWarning: No files found\n'
               '------------------------')
         return(files)
+    # sort file names in alphabetic order. In Linux, the `fnmatch` does not return
+        # results in order by itself
+    files.sort()
     # attach filenames with full path, and convert back to pathlib object
-
     files = [pathP/file for file in files]
     return files
 
@@ -144,7 +147,7 @@ def load_object(fname=''):
 
 
 def dict_to_class(adict):
-    """This function is used for reloading previously saved '.pkl' file to class object for the convenience of analysis. It is called by `load_object`.
+    """This function is used for reloading previously saved '.pkl' file to class object for the convenience of analysis. It is called by `load_object` function.
     Parameters
     ----------
     adict : dict
@@ -201,9 +204,12 @@ def save_result(save_path, result, args='', values=''):
         save_object(result, save_path/pkl_file)
         if result.rho_t.ndim == 3:
             for i in range(result.rho_t.shape[0]):
-                imageio.imwrite(save_path/('rho_t' + str(i) + '.png'), result.rho_t[i].astype(np.uint8))
-                if not isinstance(result.recons, str):
-                    imageio.imsave(save_path/('recon' + str(i) + '.png'), result.recons[i].astype(np.uint8))
+                # imageio.imwrite(save_path/('rho_t' + str(i) + '.png'), result.rho_t[i].astype(np.uint8))
+                # misc.imsave(save_path/('rho_t' + str(i) + '.tif'), result.rho_t[i])
+                imageio.imwrite(save_path/('rho_t' + str(i) + '.tif'), result.rho_t[i])
+
+                if not isinstance(result.recons, str): # if there is reconstruction image
+                    imageio.imwrite(save_path/('recon' + str(i) + '.png'), result.recons[i].astype(np.uint8))
         return
 
 
@@ -228,11 +234,11 @@ def save_recon(save_path, recon):
     pkl_file = dt + '_recon.pkl'
     save_object(recon, (path/pkl_file))
     if recon.ndim == 3:
-        for i in range(recon.shape[0]):
-            imageio.imwrite(path /(dt + '_recon' + str(i) + '.png'), recon[i])
+        for i in range(recon.shape[0]): # todo
+            imageio.imwrite(path /(dt + '_recon' + str(i) + '.tif'), recon[i])
 
-    if recon.ndim == 2:
-        imageio.imwrite(path /(dt + '_recon' + '.png'), recon)
+    if recon.ndim == 2: # todo
+        imageio.imwrite(path /(dt + '_recon' + '.tif'), recon)
 
     return
 

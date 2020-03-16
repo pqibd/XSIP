@@ -598,7 +598,7 @@ def composite_murho(name,energies,use_file=True):
     if thereitis:
         composite_outline = thereitis.group().split()
         # eg. ['K2SEO4', '1.00000', '3', 'SEO4-PH7-1.CRS']
-        n_elements = composite_outline[2]
+        n_elements = composite_outline[2] #todo: Bug fix. When the name is 'SeMet', 2 is out of index.
         if len(composite_outline)==4:
             # eg. ['K2SEO4', '1.00000', '3', 'SEO4-PH7-1.CRS']
             file_present=True
@@ -728,7 +728,7 @@ def murho_from_file(name,file_name, energies, interpol_kind='linear'):
                        names=['energies', 'cross_over', 'normalized'])
     e1 = energies
     e2 = data.energies / 1000
-    a = data.cross_over / e2  # absorbance? absorption? attenuation?
+    a = data.cross_over / e2
     normalized_atten = data.normalized
     n_energies = len(e2)
 

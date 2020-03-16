@@ -71,6 +71,7 @@ def nei_beam_parameters(beam_files, setup, detector, fix_vertical_motion=False,
     mu_t = -np.log(r)
     mu_t_median = np.median(mu_t, axis=1)
     deriv_med = abs(np.gradient(mu_t_median))
+    deriv_med = beam.mean(axis=1)*deriv_med # get rid of part of the beam with weak signal, to fix issue with finding the peak (2020-03-15T13:15:22-06:00)
     mu_t_smooth = median_filter(mu_t, [10, 5])
     deriv_all = abs(np.gradient(mu_t_smooth, axis=0))
     deriv_fwhm = mp.fwhm(np.arange(ny), deriv_med)
@@ -78,9 +79,18 @@ def nei_beam_parameters(beam_files, setup, detector, fix_vertical_motion=False,
     if Verbose:
         plt.plot(conv_filter)
     deriv_conv = []
-    for x in range(nx):
+
+    def do_convolve(x, deriv_all, conv_filter):
         deriv_x = deriv_all[:, x]
         conv = np.convolve(deriv_x, conv_filter, 'same')  # Convolution filter used here. See Notes for details.
+        return conv
+
+    for x in range(nx):
+        try:
+            conv = do_convolve(x,deriv_all,conv_filter)
+        except:
+            conv = do_convolve(x-1,deriv_all,conv_filter)
+
         deriv_conv.append(conv)
     deriv_conv = np.array(deriv_conv).T
     edge_positions_origin = deriv_conv.argmax(axis=0)
@@ -180,7 +190,7 @@ def nei_beam_parameters(beam_files, setup, detector, fix_vertical_motion=False,
     e_per_pixel = abs(edge_energies - edge1_energies).mean()
     e_width = edge_width * e_per_pixel  # gaussian edge width in terms of ENERGY
     # In IDL, we also had the std from gaussian width
-    print('(nei_beam_parameters) Gaussian Width measured from Se metal film: ')
+    print('(nei_beam_parameters) Gaussian Width measured from Edge Images: ')
     print('                      Energy Width(eV) = ', round(e_width * 1000, 2))
     print('                      Pixel Width      = ', round(edge_width, 2))
 
@@ -236,7 +246,7 @@ def get_beam_parameters(path='', e_range=0, Verbose=False):
     print("Data directory: ", path)
     path = Path(path)
     #############  get system setup info from arrangement.dat   ##########
-    setup = nei_get_arrangement(setup_type='File',path=path)
+    setup = nei_get_arrangement(path=path,arrangement_type='file')
     detector = setup.detector
     # redefine energy_range if needed
     if e_range != 0: setup.energy_range = e_range
