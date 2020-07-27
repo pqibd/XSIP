@@ -1371,7 +1371,7 @@ def skimage_recon(sinogram, pixel_size=1.0, output_size=None, filter='ramp', cen
     if center>=0:
         sinogram = sinogram[:,2*center:]
     else:
-        sinogram = sinogram[:,:-2*center]
+        sinogram = sinogram[:,:2*center]
 
     if not output_size:  # If Output_size not specified, use the image horizontal width
         output_size = sinogram.shape[1]

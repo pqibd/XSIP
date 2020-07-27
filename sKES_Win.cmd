@@ -1,1 +1,0 @@
-%USERPROFILE%\.conda\envs\skes_env\python.exe gui.py

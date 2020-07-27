@@ -154,7 +154,7 @@ def nei_beam_parameters(beam_files, setup, detector, fix_vertical_motion=False,
     '''
         edge_positions-y_index: get the relative position to edge. Use matrix to do it
         exy is the energy(keV) at every [y,x] location
-        10**10 is used to line up the unit to "Angstrom"
+        10**10 is used to line up the unit to Angstrom
     '''
     y_relative = edge_positions - y_range.reshape((ny, 1))
     exy = (C.h * C.c / C.eV) * 10 ** 10 / (2 * d_hkl * np.sin(theta_b + 0.5 * np.arctan(y_relative * pixel / dist_fd)))
@@ -234,7 +234,7 @@ def nei_beam_parameters(beam_files, setup, detector, fix_vertical_motion=False,
 
 def get_beam_parameters(path='', e_range=0, Verbose=False):
     """
-    This function is used if the beam parameters is all you need.
+    This function is used to quickly obtain beam parameters.
     :param path:
     :param e_range:
     :param Verbose:

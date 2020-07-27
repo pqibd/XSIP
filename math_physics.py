@@ -593,7 +593,7 @@ def composite_murho(name,energies,use_file=True):
     with open(abs_path/Path('MU/COMPOSIT.DAT'), 'r') as file:
         content = file.read().upper()
     # Use pattern1 to find the composite we want, and get the number of types of element it has
-    pattern1 = ' '+name.upper()+'.+\n'
+    pattern1 = ' '+name.upper()+' .+\n'
     thereitis = re.search(pattern1,content)
     if thereitis:
         composite_outline = thereitis.group().split()
@@ -713,7 +713,7 @@ def murho_selenium_compounds(name, energies, interpol_kind='linear'):
 
 
 def murho_from_file(name,file_name, energies, interpol_kind='linear'):
-    '''
+    """
     read in xas data for selenium compounds, generate murho values from the values in files,
     interpol to make value for interested energies.
     Equivalent to "murho_file_compound"
@@ -721,7 +721,8 @@ def murho_from_file(name,file_name, energies, interpol_kind='linear'):
     :param energies:
     :param interpol_kind:
     :return:
-    '''
+    """
+
     path = Path('MU/LIB')
     file = path/file_name
     data = pd.read_csv(file, delimiter=r"\s+", skiprows=1,
@@ -762,39 +763,6 @@ def murho_from_file(name,file_name, energies, interpol_kind='linear'):
     return murho_interpol
 
 
-def magic(target='',theta=None, chi = None, R=None, nu=None,f_s=None):
-    def condition(theta, chi, R, nu, f_s):
-        ''' Return the absolute difference between `f_p` and `f_g`. When `condition == 0`, the magic condtion is matched. 
-        '''
-        # polychromatic focus function
-        f_p = (R*np.sin(2.0*theta))/(2.0*np.sin(chi+theta)+(1+nu)*np.sin(2.0*chi)*np.cos(chi+theta))
-        # geometric focus function
-        f_g = np.cos(chi-theta)/(np.cos(chi+theta)/f_s+2.0/R)
-        # magic condition
-        condition = abs(f_p-f_g)
-        return condition
-
-    if target =='theta':
-        theta_range_a = np.arange(0.0,360.0)
-    elif target =='chi':#todo
-        pass
-    scores_range_a = condition(np.radians(theta_range_a),chi,R,nu,f_s)
-    theta_a = theta_range_a[np.argmin(scores_range_a)]
-    # from PIL import Image
-    plt.plot(theta_range_a,scores_range_a)
-    plt.show()
-    print('a', )
-    theta_range_b = np.linspace(theta_a-2,theta_a+2,401)
-    scores_range_b = condition(np.radians(theta_range_b), chi, R, nu, f_s)
-    theta_b = theta_range_b[np.argmin(scores_range_b)]
-    print('b')
-    theta_range_c = np.linspace(theta_b-0.02,theta_b+0.02,401)
-    scores_range_c=condition(np.radians(theta_range_c), chi, R, nu, f_s)
-    theta_c = theta_range_c[np.argmin(scores_range_c)]
-    print('c')
-    return(theta_c)
-
-
 def bragg(hkl=[1,1,1],energy=None,theta=None):
     """
     Calculator for bragg angle and bragg energy. Requires the input of either energy or theta.
@@ -826,3 +794,263 @@ def bragg(hkl=[1,1,1],energy=None,theta=None):
             lamb = 2*d_hkl *np.sin(np.radians(theta))/n
             energy.append( (c*h/eV)*(10**10)/(1000*lamb))
         return energy # keV
+
+
+# def magic(target='',theta=None, chi = None, R=None, nu=None,f_s=None):
+#     def condition(theta, chi, R, nu, f_s):
+#         ''' Return the absolute difference between `f_p` and `f_g`. When `condition == 0`, the magic condtion is met.
+#         '''
+#         # polychromatic focus function
+#         f_p = (R*np.sin(2.0*theta))/(2.0*np.sin(chi+theta)+(1+nu)*np.sin(2.0*chi)*np.cos(chi+theta))
+#         # geometric focus function
+#         f_g = np.cos(chi-theta)/(np.cos(chi+theta)/f_s+2.0/R)
+#         # magic condition
+#         condition = abs(f_p-f_g)
+#         return condition
+#
+#     if target =='theta':
+#         theta_range_a = np.arange(0.0,360.0)
+#     elif target =='chi':#todo
+#         pass
+#     scores_range_a = condition(np.radians(theta_range_a),chi,R,nu,f_s)
+#     theta_a = theta_range_a[np.argmin(scores_range_a)]
+#     # from PIL import Image
+#     plt.plot(theta_range_a,scores_range_a)
+#     plt.show()
+#     # print('a', )
+#     theta_range_b = np.linspace(theta_a-2,theta_a+2,401)
+#     scores_range_b = condition(np.radians(theta_range_b), chi, R, nu, f_s)
+#     theta_b = theta_range_b[np.argmin(scores_range_b)]
+#     # print('b')
+#     theta_range_c = np.linspace(theta_b-0.02,theta_b+0.02,401)
+#     scores_range_c=condition(np.radians(theta_range_c), chi, R, nu, f_s)
+#     theta_c = theta_range_c[np.argmin(scores_range_c)]
+#     # print('c')
+#     return(theta_c)
+
+
+def magic_condition(target='', theta=None, chi=None, R=None, nu=None, f_s=None, verbose=False):
+    """
+    Martinson, M., Samadi, N., Bassey, B., Gomez, A., & Chapman, D. (2015). Phase-preserving beam expander for
+    biomedical X-ray imaging. Journal of Synchrotron Radiation, 22(3), 801–806.
+    https://doi.org/10.1107/S1600577515004695
+
+    Example: magic_condition(target='theta', chi=3.33, R=-0.5, nu=0.22, f_s=22)
+
+    :param target: The requested magic condition variable. Choose from ['theta', 'chi', 'r']
+    :param theta: Bragg angle in degree for the interested energy and the used crystal diffraction lattice.
+    :param chi: Asymmetry angle (between diffraction lattice plane and the crystal surface normal) in degree.
+    :param R: Crystal bending radius in meter.
+    :param nu: Poisson's ratio. Assumed to be an isotropic value in the crystal bending plane.
+    :param f_s: Source distance in meter.
+    :return: The requested magic condition variable in a list. The useful one is usually the one with smallest absolute
+             value.
+    """
+    def condition(theta, chi, R, nu, f_s):
+
+        theta = np.radians(theta)
+        chi = np.radians(chi)
+        # polychromatic focus function
+        f_p = (R * np.sin(2.0 * theta)) / (
+                    2.0 * np.sin(chi + theta) + (1 + nu) * np.sin(2.0 * chi) * np.cos(chi + theta))
+        # geometric focus function
+        f_g = np.cos(chi - theta) / (np.cos(chi + theta) / f_s + 2.0 / R)
+        # magic condition
+        condition = f_p - f_g
+        return condition, f_p, f_g
+
+    def theta_study():
+        theta_range_a = np.arange(-95.0, 95.2, 0.2)
+        scores_range_a, f_p, f_g = condition(theta_range_a, chi, R, nu, f_s)
+        magic_thetas = []
+        for i in range(len(scores_range_a) - 1):
+            # find solutions for `condition=0` by looking for the point crosses x-axis
+            if scores_range_a[i] == 0:  # todo
+                pass
+            if scores_range_a[i] * scores_range_a[i + 1] <= 0 and (
+                    (scores_range_a[i] - scores_range_a[i - 1]) * (scores_range_a[i + 1] - scores_range_a[i])) > 0:
+                # [1]. Two points are on different sides of the x-axis. [2]. The derivative is not changing sign (
+                # stays positive/negative)
+                # get condition value of 10000 points in this small range, then get the minimun absolute value
+                thetas = np.linspace(theta_range_a[i], theta_range_a[i + 1], 10001)
+                scores, _, _ = condition(thetas, chi, R, nu, f_s)
+                magic_theta = thetas[abs(scores).argmin()]
+                magic_thetas.append(magic_theta)
+        note = '$\\chi(degree) = $' + str(chi) + '\nBent Radius(m) = ' + str(R) + '\n$\\nu = $' + str(
+            nu) + '\nSource Distance(m) = ' + str(f_s)
+        if verbose:
+            make_plot(theta_range_a, scores_range_a, f_p, f_g, title='Hunting Magic $\\theta_B$', note=note)
+        return magic_thetas
+
+    def chi_study():
+        chi_range_a = np.arange(-95.0, 96.0)
+        scores_range_a, f_p, f_g = condition(theta, chi_range_a, R, nu, f_s)
+        magic_chis = []
+        for i in range(len(scores_range_a) - 1):
+            # find solutions for `condition=0` by looking for the point crosses x-axis
+            if scores_range_a[i] == 0:  # todo
+                pass
+            if scores_range_a[i] * scores_range_a[i + 1] <= 0 and (
+                    (scores_range_a[i] - scores_range_a[i - 1]) * (scores_range_a[i + 1] - scores_range_a[i])) > 0:
+                # [1]. Two points are in different sides on the x-axis. [2]. The derivative is not changing sign (
+                # stay positive/negative)
+                # get condition value of 10000 points in this small range, then get the minimun absolute value
+                chis = np.linspace(chi_range_a[i], chi_range_a[i + 1], 10001)
+                scores, _, _ = condition(theta, chis, R, nu, f_s)
+                magic_chi = chis[abs(scores).argmin()]
+                magic_chis.append(magic_chi)
+        note = '$\\theta_B(degree) = $' + str(theta) + '\nBent Radius(m) = ' + str(R) + '\n$\\nu = $' + str(
+            nu) + '\nSource Distance(m) = ' + str(f_s)
+        if verbose:
+            make_plot(chi_range_a, scores_range_a, f_p, f_g, title='Hunting Magic $\\chi$', note=note)
+        return magic_chis
+
+    def r_study():  # crystal bent radius
+        r_range_a = np.append(np.arange(-10.0, -0.1, 0.1), np.arange(0.1, 10.1, 0.1))
+        scores_range_a, f_p, f_g = condition(theta, chi, r_range_a, nu, f_s)
+        magic_rs = []
+        for i in range(len(scores_range_a) - 1):
+            # find solutions for `condition=0` by looking for the point crosses x-axis
+            if scores_range_a[i] == 0:  # todo
+                pass
+            if scores_range_a[i] * scores_range_a[i + 1] <= 0 and (
+                    (scores_range_a[i] - scores_range_a[i - 1]) * (scores_range_a[i + 1] - scores_range_a[i])) > 0:
+                # [1]. Two points are in different sides on the x-axis. [2]. The derivative is not changing sign (
+                # stay positive/negative)
+                # get condition value of 10000 points in this small range, then get the minimun absolute value
+                rs = np.linspace(r_range_a[i], r_range_a[i + 1], 10001)
+                scores, _, _ = condition(theta, chi, rs, nu, f_s)
+                magic_r = rs[abs(scores).argmin()]
+                magic_rs.append(magic_r)
+        if len(
+                magic_rs) > 1:  # Get rid of the match at 0. When the bent radius is 0, f_p and f_g are both 0. And
+            # we dont need this.
+            magic_rs = np.array(magic_rs)  # transition to numpy array
+            to_delete = abs(magic_rs).argmin()  # get the index of the '0' value
+            magic_rs = np.delete(magic_rs, to_delete).tolist()  # delete the '0' value and transition back to list
+
+        note = '$\\theta_B(degree) = $' + str(theta) + '\n$\\chi$(degree) = ' + str(chi) + '\n$\\nu = $' + str(
+            nu) + '\nSource Distance(m) = ' + str(f_s)  # the annotation content
+        #         make_plot(r_range_a,scores_range_a,f_p,f_g,title='Hunting Best Bent Radius',note=note,ylim=10)
+        if verbose:
+            plt.style.use('seaborn')
+            fig = plt.figure(figsize=(18, 9))
+            plt.plot(r_range_a, scores_range_a, linestyle='--', color='r', label='Distance between P & G')
+            #         plt.plot(r_range_a,np.zeros(len(xdata)),color='k',alpha=0.5)# straight line on x-axis
+            plt.xticks(np.linspace(r_range_a[0], r_range_a[-1], 21), fontsize=12)
+            plt.yticks(fontsize=12)
+            plt.xlabel('Crystal Bent Radius', fontsize=14, position=(1.0, 1.0))
+            plt.ylabel('Meter', fontsize=14, rotation=0, position=(1.0, 1.01))
+            plt.plot(r_range_a, f_p, label='Polychromatic Focus', color='b')
+            plt.plot(r_range_a, f_g, label='Geometric Focus', color='g')
+            ylim = 1
+            plt.ylim(-ylim, ylim)
+            #         plt.xlim(-1,1)
+            plt.legend(prop={'size': 16}, loc=1)
+            plt.title('Hunting Magic Bent Radius', fontsize=18)
+            xytext = [r_range_a[-1] * 2 / 3, -ylim * 1.6 / 2.0]
+            plt.annotate(note, xy=(0, 0), xytext=xytext, size=16)
+
+            # A small plot window
+            subplot = fig.add_axes([0.17, 0.2, 0.2, 0.2])
+            subplot.set_facecolor('white')
+            subplot.plot(r_range_a, scores_range_a, color='r', linestyle='--', alpha=0.5, label='P to G')
+            subplot.plot(r_range_a, f_p, color='b', alpha=0.5, label='Polychromatic')
+            subplot.plot(r_range_a, f_g, color='g', alpha=0.5, label='Geometric')
+            subplot.grid(color='gray', alpha=0.1)
+            subplot.set_xticks(np.linspace(r_range_a[0], r_range_a[-1], 7))
+            subplot.legend()
+            subplot.set_title('Full View')
+            plt.show()
+
+        return magic_rs
+
+    def make_plot(xdata, score, f_p, f_g, title='', note='', ylim=2):
+        plt.style.use('seaborn')
+        fig = plt.figure(figsize=(18, 9))
+        plt.plot(xdata, score, linestyle='--', color='r', label='Distance between P & G')
+        plt.plot(xdata, np.zeros(len(xdata)), color='k', alpha=0.5)  # straight line on x-axis
+        plt.xticks(np.linspace(xdata[0], xdata[-1], 39), fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.xlabel('Degree', fontsize=14, position=(1.0, 1.0))
+        plt.ylabel('Meter', fontsize=14, rotation=0, position=(1.0, 1.01))
+        plt.plot(xdata, f_p, label='Polychromatic Focus', color='b')
+        plt.plot(xdata, f_g, label='Geometric Focus', color='g')
+        plt.ylim(-ylim, ylim)
+        plt.legend(prop={'size': 16})
+        plt.title(title, fontsize=18)
+        plt.annotate(note, xy=(0, 0), xytext=[60, -1.6], size=16)
+
+        # A small plot window
+        subplot = fig.add_axes([0.17, 0.2, 0.2, 0.2])
+        subplot.set_facecolor('white')
+        subplot.plot(xdata, score, color='r', linestyle='--', alpha=0.5, label='P to G')
+        subplot.plot(xdata, f_p, color='b', alpha=0.5, label='Polychromatic')
+        subplot.plot(xdata, f_g, color='g', alpha=0.5, label='Geometric')
+        subplot.grid(color='gray', alpha=0.1)
+        subplot.set_xticks(np.linspace(xdata[0], xdata[-1], 7))
+        subplot.legend()
+        subplot.set_title('Full View')
+        plt.show()
+
+    if target.upper() == 'THETA' or theta == None:
+        target = 'theta'
+        unit = 'deg'
+        mc = theta_study()
+    elif target.upper() == 'CHI' or chi == None:
+        target = 'chi'
+        unit = 'deg'
+        mc = chi_study()
+    elif target.upper() == 'R' or R == None:
+        target = 'R'
+        unit = 'm'
+        mc = r_study()
+    else:
+        raise Exception('Choose your target from ["theta","chi","R"]')
+    print('The magic condition is met when\n{} is {} {}.'.format(target,mc,unit))
+    return mc
+
+
+def relative_energy_resolution(theta,chi, R, nu, f_s, t=0.001):
+    """
+    This function is used to calculate the energy resolution of the magic condition monochromator. Note that this
+    is not suitable for calculating general bent crystal energy resolution.
+    :param theta: Bragg angle in degree for the interested energy and the used crystal diffraction lattice.
+    :param chi: Asymmetry angle (between diffraction lattice plane and the crystal surface normal) in degree.
+    :param R: Crystal bending radius in meter.
+    :param nu: Poisson's ratio. Assumed to be an isotropic value in the crystal bending plane.
+    :param f_s: Source distance in meter.
+    :param t: Crystal thickness in meter.
+    :return: dE/E, the relative energy resolution.
+    """
+    import blxo
+    mono = blxo.mc.BentLaueMono(chi=np.radians(chi),
+                                theta=np.radians(theta),
+                                nu=nu,
+                                t = t*1000,
+                                r = R*1000,
+                                p = f_s*1000)
+    return mono.energy_resolution['de_all']
+
+
+def quasi_mono_beam_width(theta,chi, R, nu, f_s, t):
+    """
+    This function is used to calculate the quasi-mono-beam-width of a bent Laue monochromator.
+    Reference: Qi, P., Samadi, N. & Chapman, D. (2020). New insights into the focusing and energy dispersion properties
+               of bent laue crystals. Manuscript in preparation.
+    :param theta: Bragg angle in degree for the interested energy and the used crystal diffraction lattice.
+    :param chi: Asymmetry angle (between diffraction lattice plane and the crystal surface normal) in degree.
+    :param R: Crystal bending radius in meter.
+    :param nu: Poisson's ratio. Assumed to be an isotropic value in the crystal bending plane.
+    :param f_s: Source distance in meter.
+    :param t: Crystal thickness in meter.
+    :return: qmbw in mm.
+    """
+    import blxo
+    mono = blxo.mc.BentLaueMono(chi=np.radians(chi),
+                                theta=np.radians(theta),
+                                nu=nu,
+                                t = t*1000,
+                                r = R*1000,
+                                p = f_s*1000)
+    return mono.qmb['width']

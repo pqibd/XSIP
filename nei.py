@@ -99,7 +99,7 @@ def nei(materials='', data_path='', save_path='', algorithm='sKES_equation', mul
 
     print('\n Save directory: ', str(save_path), end='\n\n')
     # start counting time
-    start = time.clock()
+    start = time.time()
 
     ##############    print argument settings   ########################
     frame = inspect.currentframe()
@@ -215,7 +215,7 @@ def nei(materials='', data_path='', save_path='', algorithm='sKES_equation', mul
             self.mean_rhos = mean_rhos
 
     print('\n(nei) Total running time for "nei":'
-          '\n     ', round(time.clock() - start, 2), 'seconds')
+          '\n     ', round(time.time() - start, 2), 'seconds')
     result = Result(names, beam_parameters, mu_rhos, mu_t, rho_t, snrs, recons, mean_rhos)
 
     # (2019 Feb 15) Added the following line to free up some memory
@@ -252,12 +252,12 @@ def get_mut(path=''):
 
 
 if __name__ == '__main__':
-    materials = ['Na2SeO4', 'Na2SeO3', 'Se-Meth', 'Water']
-    data_path = r'/media/pq/Silver/2020-03-11/Bee2BSe-dry-CT/z00'
-    save_path = r'/media/pq/Silver/2020-03-11/Bee2BSe-dry-CT/z00/save'
+    # materials = ['Na2SeO4', 'Na2SeO3', 'Se-Meth', 'Water']
+    materials = ['SeO4', 'SeO3', 'Se-Meth', 'Water']
+    data_path = r'G:\Large Storage\XrayData\Pod_Tubes_CT 2_1 Slice'
     multislice = True
     slice_num = 0
-    n_proj = 1800
+    n_proj = 900
     side_width = 0
-    data = nei(materials=materials, data_path=data_path, save_path=save_path, multislice=multislice,
-               slice=slice_num, n_proj=n_proj, save=False, use_torch=False)
+    data = nei(materials=materials, data_path=data_path, multislice=multislice,
+               slice=slice_num, n_proj=n_proj, save=True, use_torch=False)

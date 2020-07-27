@@ -9,14 +9,14 @@ import threading
 
 
 def read_default():
-    with open(Path('MU\materials\default.txt'), 'r') as file:
+    with open(Path('MU/materials/default.txt'), 'r') as file:
         content = file.read().upper()
     materials = re.split('\s*\n\s*', content)
     return materials
 
 
 def read_materials_file(filename,verbose=False):
-    with open(Path('MU\\materials\\' + filename + '.txt'), 'r') as file:
+    with open(Path('MU/materials/' + filename + '.txt'), 'r') as file:
         content = file.read().upper()
     materials = re.split('\s*\n\s*', content)
     return materials
@@ -32,7 +32,7 @@ def input_materials():
 
 def write_materials_file(materials, filename):
     filename = filename.lower()
-    with open(Path('MU\\materials\\' + filename + '.txt'), 'w') as file:
+    with open(Path('MU/materials/' + filename + '.txt'), 'w') as file:
         if type(materials) == 'str':
             file.write(materials)
         else:
@@ -354,7 +354,6 @@ class NearEdgeImaging:
         # s.configure("Small.TNotebook.Tab", padding=[25,5])
         # # s.configure("BW.TNotebook.Tab", padding=[157,5])
         # # s.configure('Kim.TNotebook.Tab', padding=[25,5])
-
 
         #################### Start window   ##################################
         self.window = Tk()

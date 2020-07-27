@@ -235,10 +235,10 @@ def save_recon(save_path, recon):
     save_object(recon, (path/pkl_file))
     if recon.ndim == 3:
         for i in range(recon.shape[0]): # todo
-            imageio.imwrite(path /(dt + '_recon' + str(i) + '.tif'), recon[i])
+            imageio.imwrite(path /(dt + '_recon' + str(i) + '.tif'), recon[i].astype(np.uint16))
 
     if recon.ndim == 2: # todo
-        imageio.imwrite(path /(dt + '_recon' + '.tif'), recon)
+        imageio.imwrite(path /(dt + '_recon' + '.tif'), recon.astype(np.uint8))
 
     return
 
