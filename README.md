@@ -1,18 +1,42 @@
-# Spectral-KES
-A python version of data analysis software for my Ph.D. project: selenium speciation with spectral KES imaging method.
-The basic algorithms were from the IDL programs written by **Dr. L. Dean Chapman**.
+# X-ray Spectral Imaging Program (XSIP)
 
-# How to
+A Python-based data analysis software for two imaging techniques: **spectral K-Edge Subtraction imaging (spectral KES)** and **Wide-Field Energy Dispersive X-ray Absorption Spectroscopy (Wide-Field EDXAS)**.
 
-## Run Element Speciation
+This core algorithm of this Python version softwawre package is based on programs developed with **IDL** by **Prof. L. Dean Chapman**. 
 
-### Function `nei()`
+## Installation
 
-`nei()` is the main function that goes through everything.
+[Todo]
+
+## How to use the program
+
+### The near edge imaging function: `nei()`
+
+`nei()` is the main function that goes through everything. 
+
+#### Example
+
+```python
+import xsip
+result = xsip.nei(materials=['Na2SeO4', 'Na2SeO3', 'Se-Meth', 'Water'],
+                  data_path='/directory/of/the/imaging/data',
+                  multislice=True,  # Whether the imaging data is from a multislice scan
+                  slice=0,  # If `multislice==True`, provide the number of slice to analyze (starting from 0)
+                  n_proj=900,  # The number of projection images per slice
+                  ct=True,  # Whether this is a CT scan. If `True`, `side_width` will be used.
+                  side_width=20,  # The number of pixels used on the side.
+                  e_range=0,  # The interested energy range for analysis. `0` for all available energies.
+                  lowpass=False,  # If `True`, apply a lowpass filter to reduce high frequency noise.
+                  save=False,  # Save the result or not (because the return result is usually large)?
+                  Verbose=False)  # If `True` (not suggested for general user), the program generates some figure during the data processing.
+```
+
+
 
 #### Parameters
-- **materials**: {name1, name2, ...}.Name of each material. eg.: `materials = ['Water', 'Bone', 'K2SeO4', 'U'   ]` 
-- **path**: The main directory containing Flat, Dark, Edge, Tomo, etc...
+
+- **materials**: [name1, name2, ...].Name of each material. eg.: `materials = ['Water', 'Bone', 'K2SeO4', 'U'   ]` 
+- **path**: The main directory containing Flat, Dark, Edge, Tomo, etc..
 - **algorithm**: The algorithm used to calculate $\rho t$. Options are:
   - 'sKES_equation': Default option. A equation derived with least-square approach is used. Much faster than 'nnls'. [Ref: Ying Zhu,2012 Dissertation]
   - 'nnls': A Non-Negative Linear Regression will be performed with `scipy.optimize.nnls`.
@@ -57,6 +81,13 @@ The basic algorithms were from the IDL programs written by **Dr. L. Dean Chapman
 - **snrs**: "signal to noise raito". Numpy array, in shape of [n_materials,n_projections,n_horizontal_positions]
 - **recons**: Reconstruction images. Numpy array, in shape of [n_material,n_horizontal,n_horizontal]
 - **mean_rhos**: The mean values of $\rho$ in the target area in recon image. Unit: $mg/cm^3$.
+
+### Note
+
+#### Data folder architecture
+
+[Todo]
+
 
 
 ## Spectral K-Edge Subtraction Imaging
