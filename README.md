@@ -2,7 +2,7 @@
 
 A Python-based data analysis software for two imaging techniques: **spectral K-Edge Subtraction imaging (spectral KES)** and **Wide-Field Energy Dispersive X-ray Absorption Spectroscopy (Wide-Field EDXAS)**.
 
-This core algorithm of this Python version softwawre package is based on programs developed with **IDL** by **Prof. L. Dean Chapman**. 
+The core algorithm of this Python version software package is based on programs developed with **IDL** by **Prof. L. Dean Chapman**. 
 
 ## Installation
 
