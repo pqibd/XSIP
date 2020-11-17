@@ -14,11 +14,12 @@ from scipy import misc
 def plot(x):
     plt.figure()
     plt.plot(x)
-
+    plt.show()
 
 def imshow(x):
     plt.figure()
     plt.imshow(x)
+    plt.show()
 
 
 def choose_path(title = 'Please select data directory:'):
@@ -206,10 +207,10 @@ def save_result(save_path, result, args='', values=''):
             for i in range(result.rho_t.shape[0]):
                 # imageio.imwrite(save_path/('rho_t' + str(i) + '.png'), result.rho_t[i].astype(np.uint8))
                 # misc.imsave(save_path/('rho_t' + str(i) + '.tif'), result.rho_t[i])
-                imageio.imwrite(save_path/('rho_t' + str(i) + '.tif'), result.rho_t[i])
+                imageio.imwrite(save_path/('rho_t' + str(i) + '.tif'), result.rho_t[i].astype(np.float32))
 
                 if not isinstance(result.recons, str): # if there is reconstruction image
-                    imageio.imwrite(save_path/('recon' + str(i) + '.png'), result.recons[i].astype(np.uint8))
+                    imageio.imwrite(save_path/('recon' + str(i) + '.tif'), result.recons[i].astype(np.float32))
         return
 
 
@@ -235,10 +236,10 @@ def save_recon(save_path, recon):
     save_object(recon, (path/pkl_file))
     if recon.ndim == 3:
         for i in range(recon.shape[0]): # todo
-            imageio.imwrite(path /(dt + '_recon' + str(i) + '.tif'), recon[i].astype(np.uint16))
+            imageio.imwrite(path /(dt + '_recon' + str(i) + '.tif'), recon[i].astype(np.float32))
 
     if recon.ndim == 2: # todo
-        imageio.imwrite(path /(dt + '_recon' + '.tif'), recon.astype(np.uint8))
+        imageio.imwrite(path /(dt + '_recon' + '.tif'), recon.astype(np.float32))
 
     return
 
