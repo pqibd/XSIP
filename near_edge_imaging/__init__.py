@@ -539,7 +539,7 @@ def read_average_tifs(files, flip=False, xlow=0, xhigh=0,
         image_array.append(np.array(PIL.Image.open(files[i])))
     image_array = np.array(image_array)
     average = image_array.mean(axis=0)
-    return (average)
+    return average
 
 
 def get_beam_files(path, After=False, Verbose=False, clip=False, flip=False):
