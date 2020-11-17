@@ -8,6 +8,8 @@ import imageio
 from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 from scipy import misc
 
 
@@ -211,6 +213,14 @@ def save_result(save_path, result, args='', values=''):
 
                 if not isinstance(result.recons, str): # if there is reconstruction image
                     imageio.imwrite(save_path/('recon' + str(i) + '.tif'), result.recons[i].astype(np.float32))
+                    plt.figure(figsize=(9, 9))
+                    ax = plt.gca()
+                    im = ax.imshow(result.recons[i] * 1000, cmap='gray_r')
+                    divider = make_axes_locatable(ax)
+                    cax = divider.append_axes('right', size='5%', pad=0.05)
+                    plt.colorbar(im, cax=cax).set_label('$mg/cm^3$', rotation=0, position=(1, 1), labelpad=-5)
+                    plt.tight_layout()
+                    plt.savefig(save_path / ('recon_bar_{}.tif'.format(i)))
         return
 
 
@@ -236,10 +246,18 @@ def save_recon(save_path, recon):
     save_object(recon, (path/pkl_file))
     if recon.ndim == 3:
         for i in range(recon.shape[0]): # todo
-            imageio.imwrite(path /(dt + '_recon' + str(i) + '.tif'), recon[i].astype(np.float32))
+            imageio.imwrite(path /('recon_{}_{}.tif'.format(i, dt)), recon[i].astype(np.float32))
+            plt.figure(figsize=(9, 9))
+            ax=plt.gca()
+            im=ax.imshow(recon[i] * 1000, cmap='gray_r')
+            divider=make_axes_locatable(ax)
+            cax=divider.append_axes('right', size='5%', pad=0.05)
+            plt.colorbar(im, cax=cax).set_label('$mg/cm^3$', rotation=0, position=(1, 1), labelpad=-5)
+            plt.tight_layout()
+            plt.savefig(path/ ('recon_bar_{}_{}.tif'.format(i, dt)))
 
     if recon.ndim == 2: # todo
-        imageio.imwrite(path /(dt + '_recon' + '.tif'), recon.astype(np.float32))
+        imageio.imwrite(path /('recon_{}.tif'.format(dt), recon.astype(np.float32)))
 
     return
 
