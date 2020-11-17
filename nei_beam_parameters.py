@@ -229,7 +229,7 @@ def nei_beam_parameters(beam_files, setup, detector, fix_vertical_motion=False,
                                  e_per_pixel, e_width)
     print('(nei_beam_parameters) Finished "nei_beam_parameters"')
 
-    return (beam_parameters)
+    return beam_parameters
 
 
 def get_beam_parameters(path='', e_range=0, Verbose=False):
