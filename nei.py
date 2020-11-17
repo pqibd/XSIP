@@ -194,7 +194,8 @@ def nei(materials='', data_path='', save_path='', algorithm='sKES_equation', mul
         # Available reconstruction tools. Use the one specified by "reconstruction"
         recon_funcs = {'idl': idl_recon, 'skimage': skimage_recon}
         recons = recon_funcs[reconstruction](rho_t, pixel_size=pixel, center=ct_center)
-        mean_rhos = rho_in_ct(recons, names, save_path=save_path)
+        # mean_rhos = rho_in_ct(recons, names, save_path=save_path)  # todo: update rho_in_ct() function
+        mean_rhos=""
         # plt.show()
     else:
         recons = 'To get CT Reconstruction Image\nOption 1: Change the "reconstruction" argument to"reconstruction=True" when calling "nei()";' \
@@ -253,11 +254,23 @@ def get_mut(path=''):
 
 if __name__ == '__main__':
     # materials = ['Na2SeO4', 'Na2SeO3', 'Se-Meth', 'Water']
-    materials = ['SeO4', 'SeO3', 'Se-Meth', 'Water']
-    data_path = r'G:\Large Storage\XrayData\Pod_Tubes_CT 2_1 Slice'
-    multislice = True
-    slice_num = 0
-    n_proj = 900
-    side_width = 0
-    data = nei(materials=materials, data_path=data_path, multislice=multislice,
-               slice=slice_num, n_proj=n_proj, save=True, use_torch=False)
+    # materials = ['SeO4', 'SeO3', 'Se-Meth', 'Water']
+    # data_path = r'G:\Large Storage\XrayData\Pod_Tubes_CT 2_1 Slice'
+    # multislice = True
+    # slice_num = 0
+    # n_proj = 900
+    # side_width = 0
+    # data = nei(materials=materials, data_path=data_path, multislice=multislice,
+    #            slice=slice_num, n_proj=n_proj, save=True, use_torch=False)
+    result = nei(materials=['I','Water'],
+                 data_path=r'H:\1_PhD_data\2015-08-14-C2-SpectralData-Arash',
+                 multislice=True,  # Whether the imaging data is from a multislice scan
+                 slice=0,  # If `multislice==True`, provide the number of slice to analyze (starting from 0)
+                 n_proj=900,  # The number of projection images per slice
+                 ct=True,  # Whether this is a CT scan. If `True`, `side_width` will be used.
+                 side_width=20,  # The number of pixels used on the side.
+                 e_range=0,  # The interested energy range for analysis. `0` for all available energies.
+                 lowpass=False,  # If `True`, apply a lowpass filter to reduce high frequency noise.
+                 reconstruction='skimage',
+                 save=True,  # Save the result or not (because the return result is usually large)?
+                 Verbose=False)
