@@ -1433,6 +1433,32 @@ def auto_center(data, rotation_degree=180):
     return (drift)
 
 
+def beam_motion_banding_filter(img, padding=20):
+    """
+    :param img: numpy.array.
+                2d projection image or sinogram. The left and right side of the image should be
+                empty. So that `padding` on the left and right will be used to create an beam motion
+                banding image and be normalized from the original image.
+    :param padding: int.
+                    The size of on the left and right empty area to be used to find the average value
+                    where there is no object.
+    :return img_new: numpy.array
+                     Smoothed image.
+    """
+    nx = img.shape[1]
+    mean_left = img[:, 0:padding].mean(axis=1)
+    mean_right = img[:, -padding:].mean(axis=1)
+    mean_middle = (mean_left + mean_right) / 2
+    slope = (mean_right - mean_left) / (nx - padding)
+    # Make an image with only bandings.
+    img_banding = img * 0.0
+    for i in range(img_banding.shape[1]):  # iterate cols
+        img_banding[:, i] = mean_middle + (i - nx / 2) * slope
+    # Subtract the banding from the original.
+    img_new = img-img_banding
+    return img_new
+
+
 def rho_in_ct(recon, names=None, center=[], width=0.0, save_path=''):
     """
     Calculate the average $\rho$ value in the target area in input recon image. If *center* and *width*

@@ -14,10 +14,12 @@ def nei(materials='', data_path='', save_path='', algorithm='sKES_equation', mul
         slice=0, n_proj=900, ct=False, side_width=0,
         e_range=0, lowpass=False, use_torch=True, use_file=True, arrangement_type='file',
         fix_vertical_motion=False, reconstruction=None, ct_center=0, snr=False,
-        save=True, clip=False, flip=False, fix_cross_over=False, width_factor=1.0,
+        save=True, clip=False, flip=False, width_factor=1.0,
         use_sm_data=False, use_measured_standard=False,
+        fix_beam_motion_banding=True,  # todo: 1. Add optin in GUI; 2. Automatic determine whether to use it or not.
         use_weights=False, energy_weights=0, flat_gamma=1.0,
         put_dark_back=False, fix_detector_factor=0,
+        fix_cross_over=False,
         Verbose=False):
     """
     Get beam_parameters.
@@ -179,6 +181,16 @@ def nei(materials='', data_path='', save_path='', algorithm='sKES_equation', mul
     beam = beam_parameters.beam
     print('\n(nei) Running "calculate_rhot"')
     rho_t = calculate_rhot(mu_rhos, mu_t, beam, names=names, algorithm=algorithm, use_torch=use_torch)
+    if fix_beam_motion_banding:
+        print('\n(beam_motion_banding_filter) Cleaning beam motion bandings. ')
+        if rho_t.ndim==3:
+            for i in range(rho_t.shape[0]):
+                rho_t[i]=beam_motion_banding_filter(rho_t[i],padding=20)  # todo: Merge `padding` and `side_width`.
+        elif rho_t.ndim==2:
+            rho_t = beam_motion_banding_filter(rho_t, padding=20)
+        else:
+            raise ValueError('`rho_t` has invalid dimensions ')
+
 
     ####################   get signal to noise ratio if needed  #################
     snrs = 'To get Signal-to-Noise Ratio\nOption 1: Change the "snr" argument to"snr=True" when calling "nei()";' \
