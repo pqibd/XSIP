@@ -6,7 +6,104 @@ The core algorithm of this Python version software package is based on programs 
 
 ## Installation
 
-[Todo]
+### 1. Prepare the Python environment
+
+#### 1.1 Install Python
+
+(If you already have Python3 (>3.6) installed on your machine, you can skip this step.)
+
+##### Option 1. `Miniconda` (recommended)
+
+Install the `Miniconda` Python distribution by following the official instructions [Miniconda — Conda documentation](https://docs.conda.io/en/latest/miniconda.html). 
+
+##### Option 2. Python.org
+
+[BeginnersGuide/Download - Python Wiki](https://wiki.python.org/moin/BeginnersGuide/Download). 
+
+#### 1.2 Prepare a virtual environment
+
+Create the virtual environment
+
+```bash
+conda create -n xsip python=3.6
+```
+
+Note that the `xsip` in the command above can be replaced with a name you give. The `xsip` will be used in the instruction as an example.
+
+### 2. Install XSIP
+
+#### 2.1 Download the repository and unzip the downloaded file
+
+<img src="C:\Users\pqi\Dropbox (X-ray Imaging Group)\MyCode\XSIP\.figure\README\image-20210216151210487.png" alt="image-20210216151210487" style="zoom:80%;" />
+
+#### 2.2 Prepare the virtual environment
+
+##### Activate the created virtual environment.
+
+```bash
+conda activate xsip
+```
+
+##### Install dependencies.
+
+```
+pip install -r path/to/setup/xsip_requirements.txt
+```
+
+The `xsip_requirements.txt` file is located in the `setup` folder in the downloaded repository. Use the full path to `xsip_requirements.txt` to replace the path in the command above. 
+
+##### Add the path to the `XSIP` package to the virtual environment.
+
+- Find the path to the `Conda` virtual environment folder by using the following command.
+
+  Windows: `where python`
+
+  Linux & MacOS: `which python`
+
+  It will show you an output that looks like this on Windows
+
+  ```
+  C:\Users\user\miniconda3\envs\xsip\python.exe
+  ```
+
+  or this on Linux
+
+  ```
+  /home/user/miniconda3/envs/xsip/bin/python
+  ```
+
+- Use the part of the path to `xsip` (e.g. `..\user\miniconda3\envs\xsip`) and find the folder `site-packages` for available Python packages
+
+  On Windows:
+
+  ```
+  C:\Users\user\miniconda3\envs\xsip\Lib\site-packages
+  ```
+
+  On Linux:
+
+  ```bash
+  /home/user/miniconda3/envs/xsip/lib/python3.6/site-packages
+  ```
+
+- Create a file with the file name `xsip.pth`, where the `xsip` can be actually anything, `.pth` is mandatory. The content of the file should be the path to the downloaded `XSIP` repository. For example, 
+
+  ```bash
+  C:\Users\user\XSIP
+  ```
+
+
+#### 2.3 Test the installation
+
+Navigate to the `XSIP` folder in your terminal and enter the following command.
+
+```bash
+python gui.py
+```
+
+You will see the GUI of the XSIP if the installation is successful.
+
+<img src="C:\Users\pqi\Dropbox (X-ray Imaging Group)\MyCode\XSIP\.figure\README\image-20210216160837492.png" alt="image-20210216160837492" style="zoom:70%;" />
 
 ## How to use the program
 
@@ -27,7 +124,7 @@ result = xsip.nei(materials=['Na2SeO4', 'Na2SeO3', 'Se-Meth', 'Water'],
                   side_width=20,  # The number of pixels used on the side.
                   e_range=0,  # The interested energy range for analysis. `0` for all available energies.
                   lowpass=False,  # If `True`, apply a lowpass filter to reduce high frequency noise.
-                  save=False,  # Save the result or not (because the return result is usually large)?
+                  save=False,  # Save the result or not (because the returned result is usually large)?
                   Verbose=False)  # If `True` (not suggested for general user), the program generates some figure during the data processing.
 ```
 
