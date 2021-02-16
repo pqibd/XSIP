@@ -734,7 +734,7 @@ def murho_from_file(name,file_name, energies, interpol_kind='linear'):
     n_energies = len(e2)
 
     murho_e2 = murho(name, e2, use_file=False)
-    # line up the first and last value of murho and a, then we use the a values to fake the murho values
+    # line up the first and last value of murho and a, then we use the a values to simulate the murho values
     a = murho_e2[0] + (murho_e2[-1] - murho_e2[0]) * (a - a[0]) / (a.iloc[-1] - a[0])  # type(a): pandas...series
     a = a - 0.5 * (e2 - e2.min())  # Todo: what is this used for? It makes a slope for the a.
     dataframe_a = pd.DataFrame.from_dict({'energy': e2, 'murho': a}, )
