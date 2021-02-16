@@ -103,7 +103,7 @@ python gui.py
 
 You will see the GUI of the XSIP if the installation is successful.
 
-<img src="https://github.com/darwinqii/XSIP/blob/master/.figure/README/image-20210216160837492.png?raw=true" alt="GUI" style="zoom:70%;" />
+<img src="https://github.com/darwinqii/XSIP/blob/master/.figure/README/image-20210216160837492.png?raw=true" alt="GUI" style="zoom:50%;" />
 
 ## How to use the program
 
