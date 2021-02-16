@@ -34,7 +34,7 @@ Note that the `xsip` in the command above can be replaced with a name you give. 
 
 #### 2.1 Download the repository and unzip the downloaded file
 
-<img src="C:\Users\pqi\Dropbox (X-ray Imaging Group)\MyCode\XSIP\.figure\README\image-20210216151210487.png" alt="image-20210216151210487" style="zoom:80%;" />
+<img src="https://github.com/darwinqii/XSIP/blob/master/.figure/README/image-20210216151210487.png?raw=true" alt="Download" style="zoom:80%;" />
 
 #### 2.2 Prepare the virtual environment
 
@@ -103,7 +103,7 @@ python gui.py
 
 You will see the GUI of the XSIP if the installation is successful.
 
-<img src="C:\Users\pqi\Dropbox (X-ray Imaging Group)\MyCode\XSIP\.figure\README\image-20210216160837492.png" alt="image-20210216160837492" style="zoom:70%;" />
+<img src="https://github.com/darwinqii/XSIP/blob/master/.figure/README/image-20210216160837492.png?raw=true" alt="GUI" style="zoom:70%;" />
 
 ## How to use the program
 
