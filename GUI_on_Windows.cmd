@@ -1,0 +1,1 @@
+%USERPROFILE%\miniconda3\envs\xsip\python.exe gui.py

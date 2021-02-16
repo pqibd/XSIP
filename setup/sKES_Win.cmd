@@ -1,1 +1,1 @@
-%USERPROFILE%\.conda\envs\skes_env\python.exe gui.py
+%USERPROFILE%\.conda\envs\xsip\python.exe gui.py
